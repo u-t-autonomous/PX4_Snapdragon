@@ -67,7 +67,6 @@ extern void led_off(int led);
  * Private Functions
  ************************************************************************************/
 
-
 static int default_power_button_state_notification(board_power_button_state_notification_e request)
 {
 //	syslog(0,"%d\n", request);
@@ -97,7 +96,7 @@ int board_shutdown()
 	return 0;
 }
 
-static int board_button_irq(int irq, FAR void *context)
+static int board_button_irq(int irq, FAR void *context, FAR void *args)
 {
 	static struct timespec time_down;
 
@@ -161,7 +160,7 @@ void board_pwr_init(int stage)
 	}
 
 	if (stage == 1) {
-		stm32_gpiosetevent(KEY_AD_GPIO, true, true, true, board_button_irq);
+		stm32_gpiosetevent(KEY_AD_GPIO, true, true, true, board_button_irq, NULL);
 	}
 }
 

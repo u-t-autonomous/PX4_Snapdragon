@@ -37,13 +37,13 @@ void IEKF::correctFlow(const optical_flow_s *msg)
 {
 	// requires terrain estimate
 	if (!getTerrainValid()) {
-		ROS_INFO("flow abort - terrain invalid");
+		//PX4_INFO("flow abort - terrain invalid");
 		return;
 	}
 
 	// abort if flow quality low
 	if (msg->quality < 100) {
-		//ROS_INFO("flow abort - low quality %10d", msg->quality);
+		//PX4_INFO("flow abort - low quality %10d", msg->quality);
 		return;
 	}
 
@@ -51,24 +51,25 @@ void IEKF::correctFlow(const optical_flow_s *msg)
 	float dt = 0;
 
 	if (!_sensorFlow.ready(msg->timestamp, dt)) {
+		//PX4_INFO("flow not ready");;
 		return;
 	}
 
-	//ROS_INFO("dt flow: %10.5f", double(dt));
+	//PX4_INFO("dt flow: %10.5f", double(dt));
 
 	// compute agl
 	float agl = getAgl();
 
 	// init global reference
 	if (_origin.altInitialized() && !_origin.xyInitialized()) {
-		ROS_INFO("flow origin init lat: %12.6f deg lon: %12.6f deg",
+		PX4_INFO("flow origin init lat: %12.6f deg lon: %12.6f deg",
 			 fake_lat_deg, fake_lon_deg);
 		_origin.xyInitialize(fake_lat_deg, fake_lon_deg, msg->timestamp);
 	}
 
 	// return if too close to ground
 	if (agl < 0.2f) {
-		//ROS_INFO("flow abort - too close to ground: %10.4f", double(agl));
+		//PX4_INFO("flow abort - too close to ground: %10.4f", double(agl));
 		return;
 	}
 
@@ -85,13 +86,13 @@ void IEKF::correctFlow(const optical_flow_s *msg)
 
 	// abort if rotRate too high
 	if (rotRate > 1.0f) {
-		//ROS_INFO("rotation rate too large for flow correction");
+		PX4_INFO("rotation rate too large for flow correction");
 		return;
 	}
 
 	// abort if too large of an angle
 	if (C_nb(2, 2) < 1e-1f) {
-		//ROS_INFO("flow correction aborted, too large of an angle");
+		PX4_INFO("flow correction aborted, too large of an angle");
 		return;
 	}
 
@@ -114,18 +115,18 @@ void IEKF::correctFlow(const optical_flow_s *msg)
 	y(0) = -msg->pixel_flow_y_integral / flow_dt;
 	y(1) = msg->pixel_flow_x_integral / flow_dt;
 
-	//ROS_INFO("flow vel X %10.4f vel Y %10.4f", double(agl*y(0)), double(agl*y(1)));
-	//ROS_INFO("vel N %10.4f E %10.4f", double(vel_N), double(vel_E));
+	//PX4_INFO("flow vel X %10.4f vel Y %10.4f", double(agl*y(0)), double(agl*y(1)));
+	//PX4_INFO("vel N %10.4f E %10.4f", double(vel_N), double(vel_E));
 
 	// residual
 	Vector<float, Y_flow::n> r = y - yh;
 
-	//ROS_INFO("flow: (%10g, %10g)", double(y(0)), double(y(1)));
-	//ROS_INFO("float dt: %10.4f", double(dt));
+	//PX4_INFO("flow: (%10g, %10g)", double(y(0)), double(y(1)));
+	//PX4_INFO("float dt: %10.4f", double(dt));
 
 	// define R
 	SquareMatrix<float, Y_flow::n> R;
-	float flow_var = _flow_nd * _flow_nd / dt;
+	float flow_var = _flow_nd.get() * _flow_nd.get() / dt;
 	R(Y_flow::flowX, Y_flow::flowX) = flow_var;
 	R(Y_flow::flowY, Y_flow::flowY) = flow_var;
 
@@ -199,7 +200,7 @@ void IEKF::correctFlow(const optical_flow_s *msg)
 	_innovStd(Innov::FLOW_flow_Y) = sqrtf(S(1, 1));
 
 	if (_sensorFlow.shouldCorrect()) {
-		//ROS_INFO("correct flow");
+		//PX4_INFO("correct flow");
 		// don't allow attitude correction
 		nullAttitudeCorrection(_dxe);
 		nullAltitudeCorrection(_dxe);

@@ -51,8 +51,9 @@
 
 #include "IEKF.hpp"
 
-static IEKF *est = NULL;
-static int deamon_task;             /**< Handle of deamon task / thread */
+static IEKF *est = nullptr;
+static int deamon_task = 0;             /**< Handle of deamon task / thread */
+volatile bool running = false;
 
 /**
  * Deamon management function.
@@ -97,7 +98,7 @@ int iekf_main(int argc, char *argv[])
 
 	if (!strcmp(argv[1], "start")) {
 
-		if (est != NULL) {
+		if (est != nullptr) {
 			PX4_INFO("already running");
 			/* this is not an error */
 			return 0;
@@ -108,14 +109,14 @@ int iekf_main(int argc, char *argv[])
 						 SCHED_PRIORITY_MAX - 5,
 						 10000,
 						 iekf_thread_main,
-						 (argv && argc > 2) ? (char *const *) &argv[2] : (char *const *) NULL);
+						 (argv && argc > 2) ? (char *const *) &argv[2] : (char *const *) nullptr);
 		return 0;
 	}
 
 	if (!strcmp(argv[1], "stop")) {
-		if (est != NULL) {
+		if (est != nullptr) {
 			PX4_INFO("stop requested");
-			ros::shutdown();
+			running = false;
 
 		} else {
 			PX4_INFO("not started");
@@ -125,7 +126,7 @@ int iekf_main(int argc, char *argv[])
 	}
 
 	if (!strcmp(argv[1], "status")) {
-		if (est != NULL) {
+		if (est != nullptr) {
 			PX4_INFO("is running");
 
 		} else {
@@ -141,27 +142,26 @@ int iekf_main(int argc, char *argv[])
 
 int iekf_thread_main(int argc, char *argv[])
 {
-	ros::init(argc, argv, "iekf");
+	PX4_INFO("started");
 
-	ROS_INFO("started");
-
-	if (est == NULL) {
+	if (est == nullptr) {
 		est = new IEKF();
 
 	} else {
 
-		ROS_INFO("already running");
+		PX4_INFO("already running");
 		return -1;
 	}
 
-	while (est->ok()) {
+	running = true;
+
+	while (running) {
 		// uses polling
 		est->update();
 	}
 
-	ros::shutdown();
 	delete est;
-	est = NULL;
-	ROS_INFO("stopped");
+	est = nullptr;
+	PX4_INFO("stopped");
 	return 0;
 }

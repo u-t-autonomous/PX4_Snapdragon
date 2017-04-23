@@ -35,7 +35,7 @@
 
 void IEKF::callbackLand(const vehicle_land_detected_s *msg)
 {
-	//ROS_INFO("callback land");
+	//PX4_INFO("callback land");
 	_landed = msg->landed;
 	_freefall = msg->freefall;
 }
@@ -56,7 +56,7 @@ void IEKF::correctLand(uint64_t timestamp)
 
 	// init global reference
 	if (_origin.altInitialized() && !_origin.xyInitialized()) {
-		ROS_INFO("land origin init lat: %12.6f deg lon: %12.6f deg",
+		PX4_INFO("land origin init lat: %12.6f deg lon: %12.6f deg",
 			 double(fake_lat_deg), double(fake_lon_deg));
 		_origin.xyInitialize(fake_lat_deg, fake_lon_deg, timestamp);
 	}
@@ -68,7 +68,7 @@ void IEKF::correctLand(uint64_t timestamp)
 	y(Y_land::vel_D) = 0;
 	y(Y_land::agl) = 0;
 
-	//ROS_INFO("y");
+	//PX4_INFO("y");
 	//y.print();
 
 	Vector<float, Y_land::n> yh;
@@ -77,19 +77,19 @@ void IEKF::correctLand(uint64_t timestamp)
 	yh(Y_land::vel_D) = _x(X::vel_D);
 	yh(Y_land::agl) = getAgl();
 
-	//ROS_INFO("yh");
+	//PX4_INFO("yh");
 	//yh.print();
 
-	//ROS_INFO("terrain %10.4f", double(_x(X::terrain_asl)));
-	//ROS_INFO("asl %10.4f", double(_x(X::asl)));
+	//PX4_INFO("terrain %10.4f", double(_x(X::terrain_asl)));
+	//PX4_INFO("asl %10.4f", double(_x(X::asl)));
 
 	Vector<float, Y_land::n> r = y - yh;
 
 	// define R
 	SquareMatrix<float, Y_land::n> R;
-	float var_vxy = _land_vxy_nd * _land_vxy_nd / dt;
-	float var_vz = _land_vz_nd * _land_vz_nd / dt;
-	float var_agl = _land_agl_nd * _land_agl_nd / dt;
+	float var_vxy = _land_vxy_nd.get() * _land_vxy_nd.get() / dt;
+	float var_vz = _land_vz_nd.get() * _land_vz_nd.get() / dt;
+	float var_agl = _land_agl_nd.get() * _land_agl_nd.get() / dt;
 
 	R(Y_land::vel_N, Y_land::vel_N) = var_vxy;
 	R(Y_land::vel_E, Y_land::vel_E) = var_vxy;

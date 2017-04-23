@@ -31,8 +31,7 @@
  *
  ****************************************************************************/
 
-//#include "controllib/blocks.hpp"
-#include "ros/ros.hpp"
+#include "controllib/blocks.hpp"
 #include "matrix/math.hpp"
 #include <lib/geo/geo.h>
 
@@ -58,13 +57,10 @@
 #include <uORB/topics/vehicle_global_position.h>
 #include <uORB/topics/control_state.h>
 #include <uORB/topics/estimator_status.h>
-#include <uORB/topics/estimator_state.h>
-#include <uORB/topics/estimator_state_std.h>
-#include <uORB/topics/estimator_innov.h>
-#include <uORB/topics/estimator_innov_std.h>
 
+using namespace control;
 using namespace matrix;
-//using namespace control;
+using namespace uORB;
 
 /**
  * Main class for invariant extended kalman filter
@@ -73,7 +69,7 @@ using namespace matrix;
  *
  * See: https://github.com/jgoppert/iekf_analysisa for derivation/ simulation
  */
-class IEKF /* : public SuperBlock */
+class IEKF : public SuperBlock
 {
 public:
 	IEKF();
@@ -114,7 +110,6 @@ public:
 	void correctLand(uint64_t timestamp);
 
 	// getters/ setters
-	bool ok() { return _nh.ok(); }
 	void setP(const SquareMatrix<float, Xe::n> &P)
 	{
 		_P = P;
@@ -260,7 +255,6 @@ public:
 private:
 	IEKF(const IEKF &other);
 	const IEKF &operator=(const IEKF &other);
-	ros::NodeHandle _nh;
 
 	// sensors
 	Sensor _sensorAccel;
@@ -276,28 +270,22 @@ private:
 	Sensor _sensorLand;
 
 	// subscriptions
-	ros::Subscriber _subImu;
-	ros::Subscriber _subGps;
-	ros::Subscriber _subAirspeed;
-	ros::Subscriber _subFlow;
-	ros::Subscriber _subDistance;
-	ros::Subscriber _subVision;
-	ros::Subscriber _subMocap;
-	ros::Subscriber _subLand;
-	ros::Subscriber _subParamUpdate;
+	SubscriptionTiny _subImu;
+	SubscriptionTiny _subGps;
+	SubscriptionTiny _subAirspeed;
+	SubscriptionTiny _subFlow;
+	SubscriptionTiny _subDistance;
+	SubscriptionTiny _subVision;
+	SubscriptionTiny _subMocap;
+	SubscriptionTiny _subLand;
+	SubscriptionTiny _subParamUpdate;
 
 	// publishers
-	ros::Publisher _pubAttitude;
-	ros::Publisher _pubLocalPosition;
-	ros::Publisher _pubGlobalPosition;
-	ros::Publisher _pubControlState;
-	ros::Publisher _pubEstimatorStatus;
-
-	ros::Publisher _pubEstimatorState;
-	ros::Publisher _pubEstimatorStateStd;
-	ros::Publisher _pubEstimatorInnov;
-	ros::Publisher _pubEstimatorInnovStd;
-
+	PublicationTiny _pubAttitude;
+	PublicationTiny _pubLocalPosition;
+	PublicationTiny _pubGlobalPosition;
+	PublicationTiny _pubControlState;
+	PublicationTiny _pubEstimatorStatus;
 
 	// data
 	Vector<float, X::n> _x0; 		// initial state vector
@@ -326,42 +314,48 @@ private:
 	SquareMatrix<float, Xe::n> _dP; 	// change in covariance matrix used for checking
 	Vector<float, Innov::n>  _innov;
 	Vector<float, Innov::n>  _innovStd;
-	enum {
-		COV_STEP_AP = 0,
-		COV_STEP_PAT = 1,
-		COV_STEP_Q = 2,
-	};
 	uint16_t _overruns;
 
 	// params
-	float _gyro_nd;
-	float _gyro_rw_nd;
-	float _gyro_rw_ct;
-	float _accel_nd;
-	float _accel_rw_nd;
-	float _accel_rw_ct;
-	float _baro_nd;
-	float _baro_rw_nd;
-	float _baro_rw_ct;
-	float _mag_nd;
-	float _mag_rw_nd;
-	float _mag_rw_ct;
-	float _mag_decl_deg;
-	float _gps_xy_nd;
-	float _gps_z_nd;
-	float _gps_vxy_nd;
-	float _gps_vz_nd;
-	float _flow_nd;
-	float _lidar_nd;
-	float _sonar_nd;
-	float _land_vxy_nd;
-	float _land_vz_nd;
-	float _land_agl_nd;
-	float _pn_xy_nd;
-	float _pn_vxy_nd;
-	float _pn_z_nd;
-	float _pn_vz_nd;
-	float _pn_rot_nd;
-	float _pn_t_asl_nd;
-	float _pn_t_asl_s_nd;
+	BlockParamFloat _gyro_nd;
+	BlockParamFloat _gyro_rw_nd;
+	BlockParamFloat _gyro_rw_ct;
+	BlockParamFloat _accel_nd;
+	BlockParamFloat _accel_rw_nd;
+	BlockParamFloat _accel_rw_ct;
+	BlockParamFloat _baro_nd;
+	BlockParamFloat _baro_rw_nd;
+	BlockParamFloat _baro_rw_ct;
+	BlockParamFloat _mag_nd;
+	BlockParamFloat _mag_rw_nd;
+	BlockParamFloat _mag_rw_ct;
+	BlockParamFloat _mag_decl_deg;
+	BlockParamFloat _gps_xy_nd;
+	BlockParamFloat _gps_z_nd;
+	BlockParamFloat _gps_vxy_nd;
+	BlockParamFloat _gps_vz_nd;
+	BlockParamFloat _flow_nd;
+	BlockParamFloat _lidar_nd;
+	BlockParamFloat _sonar_nd;
+	BlockParamFloat _land_vxy_nd;
+	BlockParamFloat _land_vz_nd;
+	BlockParamFloat _land_agl_nd;
+	BlockParamFloat _pn_xy_nd;
+	BlockParamFloat _pn_vxy_nd;
+	BlockParamFloat _pn_z_nd;
+	BlockParamFloat _pn_vz_nd;
+	BlockParamFloat _pn_rot_nd;
+	BlockParamFloat _pn_t_asl_nd;
+	BlockParamFloat _pn_t_asl_s_nd;
+	BlockParamFloat _rate_accel;
+	BlockParamFloat _rate_mag;
+	BlockParamFloat _rate_baro;
+	BlockParamFloat _rate_gps;
+	BlockParamFloat _rate_airspeed;
+	BlockParamFloat _rate_flow;
+	BlockParamFloat _rate_sonar;
+	BlockParamFloat _rate_lidar;
+	BlockParamFloat _rate_vision;
+	BlockParamFloat _rate_mocap;
+	BlockParamFloat _rate_land;
 };

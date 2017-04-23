@@ -41,16 +41,16 @@ void IEKF::correctDistance(const distance_sensor_s *msg)
 	}
 
 	// get correct sensor
-	Sensor *sensor = NULL;
+	Sensor *sensor = nullptr;
 	float d_nd = 0;
 
 	if (msg->type == distance_sensor_s::MAV_DISTANCE_SENSOR_ULTRASOUND) {
 		sensor = &_sensorSonar;
-		d_nd = _sonar_nd;
+		d_nd = _sonar_nd.get();
 
 	} else if (msg->type == distance_sensor_s::MAV_DISTANCE_SENSOR_LASER) {
 		sensor = &_sensorLidar;
-		d_nd = _lidar_nd;
+		d_nd = _lidar_nd.get();
 
 	} else {
 		return;
@@ -65,7 +65,7 @@ void IEKF::correctDistance(const distance_sensor_s *msg)
 
 	// if not pointing down (roll 180 by convention), do not use
 	if (msg->orientation != 8) {
-		ROS_INFO("distance sensor wrong orientation %d", msg->orientation);
+		PX4_INFO("distance sensor wrong orientation %d", msg->orientation);
 		return;
 	}
 
@@ -89,13 +89,13 @@ void IEKF::correctDistance(const distance_sensor_s *msg)
 
 	// abort if too large of an angle
 	if (C_nb(2, 2) < 1e-1f) {
-		ROS_INFO("dist bototm correction aborted, too large of an angle");
+		PX4_INFO("dist bototm correction aborted, too large of an angle");
 		return;
 	}
 
 	// init origin alt
 	//if (!_origin.altInitialized()) {
-	//ROS_INFO("dist bottom  origin init alt %12.2f m", double(msg->current_distance));
+	//PX4_INFO("dist bottom  origin init alt %12.2f m", double(msg->current_distance));
 	//_origin.altInitialize(msg->current_distance, msg->timestamp);
 	//_x(X::asl) = msg->current_distance;
 	//_x(X::terrain_asl) = 0;
@@ -108,8 +108,8 @@ void IEKF::correctDistance(const distance_sensor_s *msg)
 	// measured distance
 	float y = msg->current_distance;
 
-	//ROS_INFO("lidar yh: %10.4e", double(yh));
-	//ROS_INFO("lidar y: %10.4e", double(y));
+	//PX4_INFO("lidar yh: %10.4e", double(yh));
+	//PX4_INFO("lidar y: %10.4e", double(y));
 
 	Vector<float, 1> r;
 	r(0) = y - yh;
@@ -144,7 +144,7 @@ void IEKF::correctDistance(const distance_sensor_s *msg)
 	}
 
 	if (sensor->shouldCorrect()) {
-		//ROS_INFO("correct dist bottom");
+		//PX4_INFO("correct dist bottom");
 		// don't allow attitude correction
 		nullAttitudeCorrection(_dxe);
 		// don't allow position correction in north/ east

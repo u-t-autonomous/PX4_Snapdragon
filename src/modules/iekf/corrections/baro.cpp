@@ -43,17 +43,18 @@ void IEKF::correctBaro(const sensor_combined_s *msg)
 		return;
 	}
 
-	//ROS_INFO("correct baro");
+	//PX4_INFO("correct baro");
 
 	// init origin alt
 	if (!_origin.altInitialized()) {
-		ROS_INFO("baro origin init alt %12.2f m", double(msg->baro_alt_meter));
+		PX4_INFO("baro origin init alt %12.2f m", double(msg->baro_alt_meter));
 		_origin.altInitialize(msg->baro_alt_meter, msg->timestamp);
 		_x(X::baro_bias) = 0;
 		_baroOffset = 0;
 		float alt_m = msg->baro_alt_meter;
 		_x(X::asl) = alt_m;
 		_baroOffset = 0;
+
 		// if we have no terrain data, guess we are on the ground
 		if (!getTerrainValid()) {
 			_x(X::terrain_asl) = alt_m;
@@ -67,7 +68,7 @@ void IEKF::correctBaro(const sensor_combined_s *msg)
 	yh(Y_baro::asl)	= _x(X::asl) + _x(X::baro_bias) + _baroOffset;
 	Vector<float, Y_baro::n> r = y - yh;
 
-	//ROS_INFO("asl: %10g, bias: %10g, offset: %10g, r: %10g",
+	//PX4_INFO("asl: %10g, bias: %10g, offset: %10g, r: %10g",
 	//double(_x(X::asl)), double(_x(X::baro_bias)), double(_baroOffset),
 	//double(r(0)));
 
@@ -76,8 +77,8 @@ void IEKF::correctBaro(const sensor_combined_s *msg)
 
 	// define R
 	SquareMatrix<float, Y_baro::n> R;
-	R(Y_baro::asl, Y_baro::asl) = _baro_nd * _baro_nd / dt;
-	//ROS_INFO("baro dt: %10.4f, variance: %10.4f", double(dt), double(sqrtf(R(0, 0))));
+	R(Y_baro::asl, Y_baro::asl) = _baro_nd.get() * _baro_nd.get() / dt;
+	//PX4_INFO("baro dt: %10.4f, variance: %10.4f", double(dt), double(sqrtf(R(0, 0))));
 
 	// define H
 	Matrix<float, Y_baro::n, Xe::n> H;

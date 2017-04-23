@@ -68,17 +68,17 @@ void IEKF::correctAccel(const sensor_combined_s *msg)
 
 	// weight less if accelerating
 	float relNormError = ((a_b_corrected).norm()
-				  - _g_n.norm()) / _g_n.norm();
+			      - _g_n.norm()) / _g_n.norm();
 
 	// define R
 	// worst accel dir change is if accel is normal to gravity,
 	// assume this and calculate angle covariance based on accel norm error
 	Matrix<float, Y_accel::n, Y_accel::n> R;
 	float cov = (
-			    _accel_nd * _accel_nd
-				+ 1e0f * relNormError * relNormError
-				+ 4e0f * rotRateSq
-				) / dt;
+			    _accel_nd.get() * _accel_nd.get()
+			    + 1e0f * relNormError * relNormError
+			    + 4e0f * rotRateSq
+		    ) / dt;
 	R(Y_accel::accel_bX, Y_accel::accel_bX) = cov;
 	R(Y_accel::accel_bY, Y_accel::accel_bY) = cov;
 	R(Y_accel::accel_bZ, Y_accel::accel_bZ) = cov;

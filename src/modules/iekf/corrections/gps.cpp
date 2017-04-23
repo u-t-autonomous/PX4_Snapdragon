@@ -47,7 +47,7 @@ void IEKF::correctGps(const vehicle_gps_position_s *msg)
 		return;
 	}
 
-	//ROS_INFO("correct gps");
+	//PX4_INFO("correct gps");
 
 	double lat_deg = msg->lat * 1e-7;
 	double lon_deg = msg->lon * 1e-7;
@@ -55,12 +55,12 @@ void IEKF::correctGps(const vehicle_gps_position_s *msg)
 
 	// init global reference
 	if (!_origin.xyInitialized()) {
-		ROS_INFO("gps origin init lat: %12.6f deg lon: %12.6f deg",
+		PX4_INFO("gps origin init lat: %12.6f deg lon: %12.6f deg",
 			 double(lat_deg), double(lon_deg));
 		_origin.xyInitialize(lat_deg, lon_deg, msg->timestamp);
 
 		// init origin alt
-		ROS_INFO("gps origin init alt %12.2f m", double(alt_m));
+		PX4_INFO("gps origin init alt %12.2f m", double(alt_m));
 		_origin.altInitialize(alt_m, msg->timestamp);
 		float deltaAlt = alt_m - _baroAsl;
 		_baroOffset -= deltaAlt;
@@ -89,7 +89,7 @@ void IEKF::correctGps(const vehicle_gps_position_s *msg)
 	y(Y_gps::vel_E) = msg->vel_e_m_s;
 	y(Y_gps::vel_D) = msg->vel_d_m_s;
 
-	//ROS_INFO("gps vx: %10.4f , iekf vx: %10.4f",
+	//PX4_INFO("gps vx: %10.4f , iekf vx: %10.4f",
 	//double(msg->vel_n_m_s), double(_x(X::vel_N)));
 
 	Vector<float, Y_gps::n> yh;
@@ -101,15 +101,17 @@ void IEKF::correctGps(const vehicle_gps_position_s *msg)
 	yh(Y_gps::vel_D) = _x(X::vel_D);
 
 	Vector<float, Y_gps::n> r = y - yh;
+	//PX4_INFO("r");
+	//r.print();
 
 	// define R
 	Matrix<float, Y_gps::n, Y_gps::n> R;
 
 	// variances
-	float gps_xy_var = _gps_xy_nd * _gps_xy_nd / dt;
-	float gps_z_var = _gps_z_nd * _gps_z_nd / dt;
-	float gps_vxy_var = _gps_vxy_nd * _gps_vxy_nd;
-	float gps_vz_var = _gps_vz_nd * _gps_vz_nd;
+	float gps_xy_var = _gps_xy_nd.get() * _gps_xy_nd.get() / dt;
+	float gps_z_var = _gps_z_nd.get() * _gps_z_nd.get() / dt;
+	float gps_vxy_var = _gps_vxy_nd.get() * _gps_vxy_nd.get() / dt;
+	float gps_vz_var = _gps_vz_nd.get() * _gps_vz_nd.get() / dt;
 
 	R(Y_gps::pos_N, Y_gps::pos_N) = gps_xy_var;
 	R(Y_gps::pos_E, Y_gps::pos_E) = gps_xy_var;

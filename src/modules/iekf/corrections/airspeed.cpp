@@ -42,7 +42,7 @@ void IEKF::correctAirspeed(const airspeed_s *msg)
 		return;
 	}
 
-	//ROS_INFO("correct airspeed");
+	//PX4_INFO("correct airspeed");
 
 	// attitude info
 	Quatf q_nb(
@@ -70,7 +70,7 @@ void IEKF::correctAirspeed(const airspeed_s *msg)
 	if (wind_angle > wind_angle_max) {
 		if (wind_rel_b.norm() > 5.0f) {
 			// if airspeed magnitude large warn the user, this could be a problem
-			ROS_WARN("relative wind angle too large for pitot tube correction");
+			PX4_WARN("relative wind angle too large for pitot tube correction");
 		}
 
 		return;

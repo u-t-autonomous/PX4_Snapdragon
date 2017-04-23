@@ -33,13 +33,14 @@
 
 #include "IEKF.hpp"
 #include "constants.hpp"
+#include <px4_posix.h>
+#include <drivers/drv_hrt.h>
 
-float condMaxDefault = 10;
-float betaMaxDefault = 3;
+float condMaxDefault = 100;
+float betaMaxDefault = 10;
 
 IEKF::IEKF() :
-	//SuperBlock(NULL, "IEKF"),
-	_nh(), // node handle
+	SuperBlock(nullptr, "IEKF"),
 	// blocks
 	//_aglLP(this, "POS_LP"),
 	//_baroLP(this, "BARO_LP"),
@@ -58,25 +59,21 @@ IEKF::IEKF() :
 	_sensorMocap("mocap", betaMaxDefault, condMaxDefault, 0),
 	_sensorLand("land_detected", betaMaxDefault, condMaxDefault, 0),
 	// subscriptions
-	_subImu(_nh.subscribe("sensor_combined", 0, &IEKF::callbackImu, this, 1000 / 1000)),
-	_subGps(_nh.subscribe("vehicle_gps_position", 0, &IEKF::correctGps, this, 1000 / 10)),
-	_subAirspeed(_nh.subscribe("airspeed", 0, &IEKF::correctAirspeed, this, 1000 / 10)),
-	_subFlow(_nh.subscribe("optical_flow", 0, &IEKF::correctFlow, this, 1000 / 50)),
-	_subDistance(_nh.subscribe("distance_sensor", 0, &IEKF::correctDistance, this, 1000 / 10)),
-	_subVision(_nh.subscribe("vehicle_vision_position", 0, &IEKF::correctVision, this, 1000 / 10)),
-	_subMocap(_nh.subscribe("att_pos_mocap", 0, &IEKF::correctMocap, this, 1000 / 10)),
-	_subLand(_nh.subscribe("vehicle_land_detected", 0, &IEKF::callbackLand, this, 1000 / 10)),
-	_subParamUpdate(_nh.subscribe("parameter_update", 0, &IEKF::callbackParamUpdate, this, 1000 / 10)),
+	_subImu(ORB_ID(sensor_combined), 1000 / 1000, 0),
+	_subGps(ORB_ID(vehicle_gps_position), 1000 / 10),
+	_subAirspeed(ORB_ID(airspeed), 1000 / 10, 0),
+	_subFlow(ORB_ID(optical_flow), 1000 / 50, 0),
+	_subDistance(ORB_ID(distance_sensor), 1000 / 20, 0),
+	_subVision(ORB_ID(vehicle_vision_position), 1000 / 10, 0),
+	_subMocap(ORB_ID(att_pos_mocap), 1000 / 10, 0),
+	_subLand(ORB_ID(vehicle_land_detected), 1000 / 10, 0),
+	_subParamUpdate(ORB_ID(parameter_update), 1000 / 10, 0),
 	// publications
-	_pubAttitude(_nh.advertise<vehicle_attitude_s>("vehicle_attitude", 0)),
-	_pubLocalPosition(_nh.advertise<vehicle_local_position_s>("vehicle_local_position", 0)),
-	_pubGlobalPosition(_nh.advertise<vehicle_global_position_s>("vehicle_global_position", 0)),
-	_pubControlState(_nh.advertise<control_state_s>("control_state", 0)),
-	_pubEstimatorStatus(_nh.advertise<estimator_status_s>("estimator_status", 0)),
-	_pubEstimatorState(_nh.advertise<estimator_state_s>("estimator_state", 0)),
-	_pubEstimatorStateStd(_nh.advertise<estimator_state_std_s>("estimator_state_std", 0)),
-	_pubEstimatorInnov(_nh.advertise<estimator_innov_s>("estimator_innov", 0)),
-	_pubEstimatorInnovStd(_nh.advertise<estimator_innov_std_s>("estimator_innov_std", 0)),
+	_pubAttitude(ORB_ID(vehicle_attitude), -1),
+	_pubLocalPosition(ORB_ID(vehicle_local_position), -1),
+	_pubGlobalPosition(ORB_ID(vehicle_global_position), -1),
+	_pubControlState(ORB_ID(control_state), -1),
+	_pubEstimatorStatus(ORB_ID(estimator_status), -1),
 
 	// data
 	_x0(),
@@ -104,36 +101,47 @@ IEKF::IEKF() :
 	_innovStd(),
 	_overruns(),
 	// params
-	_gyro_nd(0),
-	_gyro_rw_nd(0),
-	_gyro_rw_ct(1000),
-	_accel_nd(0),
-	_accel_rw_nd(0),
-	_accel_rw_ct(1000),
-	_baro_nd(0),
-	_baro_rw_nd(0),
-	_baro_rw_ct(1000),
-	_mag_nd(0),
-	_mag_rw_nd(0),
-	_mag_rw_ct(1000),
-	_mag_decl_deg(0),
-	_gps_xy_nd(0),
-	_gps_z_nd(0),
-	_gps_vxy_nd(0),
-	_gps_vz_nd(0),
-	_flow_nd(0),
-	_lidar_nd(0),
-	_sonar_nd(0),
-	_land_vxy_nd(0),
-	_land_vz_nd(0),
-	_land_agl_nd(0),
-	_pn_xy_nd(0),
-	_pn_vxy_nd(0),
-	_pn_z_nd(0),
-	_pn_vz_nd(0),
-	_pn_rot_nd(0),
-	_pn_t_asl_nd(0),
-	_pn_t_asl_s_nd(0)
+	_gyro_nd(this, "GYRO_ND"),
+	_gyro_rw_nd(this, "GYRO_RW_ND"),
+	_gyro_rw_ct(this, "GYRO_RW_CT"),
+	_accel_nd(this, "ACCEL_ND"),
+	_accel_rw_nd(this, "ACCEL_RW_ND"),
+	_accel_rw_ct(this, "ACCEL_RW_CT"),
+	_baro_nd(this, "BARO_ND"),
+	_baro_rw_nd(this, "BARO_RW_ND"),
+	_baro_rw_ct(this, "BARO_RW_CT"),
+	_mag_nd(this, "MAG_ND"),
+	_mag_rw_nd(this, "MAG_RW_ND"),
+	_mag_rw_ct(this, "MAG_RW_CT"),
+	_mag_decl_deg(this, "MAG_DECL"),
+	_gps_xy_nd(this, "GPS_XY_ND"),
+	_gps_z_nd(this, "GPS_Z_ND"),
+	_gps_vxy_nd(this, "GPS_VXY_ND"),
+	_gps_vz_nd(this, "GPS_VZ_ND"),
+	_flow_nd(this, "FLOW_ND"),
+	_lidar_nd(this, "LIDAR_ND"),
+	_sonar_nd(this, "SONAR_ND"),
+	_land_vxy_nd(this, "LAND_VXY_ND"),
+	_land_vz_nd(this, "LAND_VZ_ND"),
+	_land_agl_nd(this, "LAND_AGL_ND"),
+	_pn_xy_nd(this, "PN_XY_ND"),
+	_pn_vxy_nd(this, "PN_VXY_ND"),
+	_pn_z_nd(this, "PN_Z_ND"),
+	_pn_vz_nd(this, "PN_VZ_ND"),
+	_pn_rot_nd(this, "PN_ROT_ND"),
+	_pn_t_asl_nd(this, "PN_T_ND"),
+	_pn_t_asl_s_nd(this, "PN_TS_ND"),
+	_rate_accel(this, "RATE_ACCEL"),
+	_rate_mag(this, "RATE_MAG"),
+	_rate_baro(this, "RATE_BARO"),
+	_rate_gps(this, "RATE_GPS"),
+	_rate_airspeed(this, "RATE_AIRSPEED"),
+	_rate_flow(this, "RATE_FLOW"),
+	_rate_sonar(this, "RATE_SONAR"),
+	_rate_lidar(this, "RATE_LIDAR"),
+	_rate_vision(this, "RATE_VISION"),
+	_rate_mocap(this, "RATE_MOCAP"),
+	_rate_land(this, "RATE_LAND")
 {
 	// for quaterinons we bound at 2
 	// so it has a chance to
@@ -155,7 +163,7 @@ IEKF::IEKF() :
 	_xMin(X::pos_E) = -1e30;
 	_xMin(X::asl) = -1e30;
 	_xMin(X::terrain_asl) = -1e30;
-	_xMin(X::baro_bias) = -100;
+	_xMin(X::baro_bias) = -1e4;
 	//_xMin(X::wind_N) = -100;
 	//_xMin(X::wind_E) = -100;
 	//_xMin(X::wind_D) = -100;
@@ -177,7 +185,7 @@ IEKF::IEKF() :
 	_xMax(X::pos_E) = 1e30;
 	_xMax(X::asl) = 1e30;
 	_xMax(X::terrain_asl) = 1e30;
-	_xMax(X::baro_bias) = 100;
+	_xMax(X::baro_bias) = 1e4;
 	//_xMax(X::wind_N) = 100;
 	//_xMax(X::wind_E) = 100;
 	//_xMax(X::wind_D) = 100;
@@ -190,23 +198,23 @@ IEKF::IEKF() :
 	setX(_x0);
 
 	// initialize covariance
-	_P0Diag(Xe::rot_N) = 0;
-	_P0Diag(Xe::rot_E) = 0;
-	_P0Diag(Xe::rot_D) = 0;
-	_P0Diag(Xe::vel_N) = 0;
-	_P0Diag(Xe::vel_E) = 0;
-	_P0Diag(Xe::vel_D) = 0;
-	_P0Diag(Xe::gyro_bias_N) = 1e-4;
-	_P0Diag(Xe::gyro_bias_E) = 1e-4;
-	_P0Diag(Xe::gyro_bias_D) = 1e-4;
-	_P0Diag(Xe::accel_bias_N) = 1e-3;
-	_P0Diag(Xe::accel_bias_E) = 1e-3;
-	_P0Diag(Xe::accel_bias_D) = 1e-3;
-	_P0Diag(Xe::pos_N) = 0;
-	_P0Diag(Xe::pos_E) = 0;
-	_P0Diag(Xe::asl) = 0;
-	_P0Diag(Xe::terrain_asl) = 0;
-	_P0Diag(Xe::baro_bias) = 0;
+	_P0Diag(Xe::rot_N) = 1e-3;
+	_P0Diag(Xe::rot_E) = 1e-3;
+	_P0Diag(Xe::rot_D) = 1e-3;
+	_P0Diag(Xe::vel_N) = 1;
+	_P0Diag(Xe::vel_E) = 1;
+	_P0Diag(Xe::vel_D) = 1;
+	_P0Diag(Xe::gyro_bias_N) = 1e-1;
+	_P0Diag(Xe::gyro_bias_E) = 1e-1;
+	_P0Diag(Xe::gyro_bias_D) = 1e-1;
+	_P0Diag(Xe::accel_bias_N) = 1e-1;
+	_P0Diag(Xe::accel_bias_E) = 1e-1;
+	_P0Diag(Xe::accel_bias_D) = 1e-1;
+	_P0Diag(Xe::pos_N) = 1;
+	_P0Diag(Xe::pos_E) = 1;
+	_P0Diag(Xe::asl) = 1;
+	_P0Diag(Xe::terrain_asl) = 1;
+	_P0Diag(Xe::baro_bias) = 1;
 	//_P0Diag(Xe::wind_N) = 0;
 	//_P0Diag(Xe::wind_E) = 0;
 	//_P0Diag(Xe::wind_D) = 0;
@@ -229,7 +237,56 @@ void IEKF::update()
 		return;
 	}
 
-	ros::spin();
+	// callbacks
+	// TODO: make callbacks a uORB class arg
+	if (_subImu.updated()) {
+		sensor_combined_s msg;
+		_subImu.update(&msg);
+		callbackImu(&msg);
+	}
+
+	if (_subGps.updated()) {
+		vehicle_gps_position_s msg;
+		_subGps.update(&msg);
+		correctGps(&msg);
+	}
+
+	if (_subAirspeed.updated()) {
+		airspeed_s msg;
+		_subAirspeed.update(&msg);
+		correctAirspeed(&msg);
+	}
+
+	if (_subFlow.updated()) {
+		optical_flow_s msg;
+		_subFlow.update(&msg);
+		correctFlow(&msg);
+	}
+
+	if (_subDistance.updated()) {
+		distance_sensor_s msg;
+		_subDistance.update(&msg);
+		correctDistance(&msg);
+	}
+
+	if (_subVision.updated()) {
+		vehicle_local_position_s msg;
+		_subVision.update(&msg);
+		correctVision(&msg);
+	}
+
+	if (_subMocap.updated()) {
+		att_pos_mocap_s msg;
+		_subMocap.update(&msg);
+		correctMocap(&msg);
+	}
+
+	if (_subLand.updated()) {
+		vehicle_land_detected_s msg;
+		_subLand.update(&msg);
+		callbackLand(&msg);
+	}
+
 	publish();
 }
 
@@ -253,29 +310,29 @@ Vector<float, X::n> IEKF::dynamics(float t, const Vector<float, X::n> &x, const 
 	dx(X::q_nb_2) = dq_nb(2);
 	dx(X::q_nb_3) = dq_nb(3);
 
-	//ROS_INFO("as_n: %10.4f %10.4f %10.4f",
+	//PX4_INFO("as_n: %10.4f %10.4f %10.4f",
 	//double(as_n(0)),
 	//double(as_n(1)),
 	//double(as_n(2)));
 
-	//ROS_INFO("V_n: %10.4f %10.4f %10.4f",
+	//PX4_INFO("V_n: %10.4f %10.4f %10.4f",
 	//double(_x(X::vel_N)),
 	//double(_x(X::vel_E)),
 	//double(_x(X::vel_D)));
 
-	//ROS_INFO("wind: %10.4f %10.4f %10.4f",
+	//PX4_INFO("wind: %10.4f %10.4f %10.4f",
 	//double(_x(X::wind_N)),
 	//double(_x(X::wind_E)),
 	//double(_x(X::wind_D)));
 
 	// params
-	dx(X::gyro_bias_bX) = -_x(X::gyro_bias_bX) / _gyro_rw_ct;
-	dx(X::gyro_bias_bY) = -_x(X::gyro_bias_bY) / _gyro_rw_ct;
-	dx(X::gyro_bias_bZ) = -_x(X::gyro_bias_bZ) / _gyro_rw_ct;
+	dx(X::gyro_bias_bX) = -_x(X::gyro_bias_bX) / _gyro_rw_ct.get();
+	dx(X::gyro_bias_bY) = -_x(X::gyro_bias_bY) / _gyro_rw_ct.get();
+	dx(X::gyro_bias_bZ) = -_x(X::gyro_bias_bZ) / _gyro_rw_ct.get();
 
-	dx(X::accel_bias_bX) = -_x(X::accel_bias_bX) / _accel_rw_ct;
-	dx(X::accel_bias_bY) = -_x(X::accel_bias_bY) / _accel_rw_ct;
-	dx(X::accel_bias_bZ) = -_x(X::accel_bias_bZ) / _accel_rw_ct;
+	dx(X::accel_bias_bX) = -_x(X::accel_bias_bX) / _accel_rw_ct.get();
+	dx(X::accel_bias_bY) = -_x(X::accel_bias_bY) / _accel_rw_ct.get();
+	dx(X::accel_bias_bZ) = -_x(X::accel_bias_bZ) / _accel_rw_ct.get();
 
 	dx(X::vel_N) = as_n(0);
 	dx(X::vel_E) = as_n(1);
@@ -288,16 +345,16 @@ Vector<float, X::n> IEKF::dynamics(float t, const Vector<float, X::n> &x, const 
 	// want terrain dynamics to be static, so when out of range it keeps
 	// last estimate and doesn't decay
 	dx(X::terrain_asl) = 0;
-	dx(X::baro_bias) = -x(X::baro_bias) / _baro_rw_ct;
-	//dx(X::wind_N) = -_x(X::wind_N) / _wind_rw_ct;
-	//dx(X::wind_E) = -_x(X::wind_E) / _wind_rw_ct;
-	//dx(X::wind_D) = -_x(X::wind_D) / _wind_rw_ct;
+	dx(X::baro_bias) = -x(X::baro_bias) / _baro_rw_ct.get();
+	//dx(X::wind_N) = -_x(X::wind_N) / _wind_rw_ct.get();
+	//dx(X::wind_E) = -_x(X::wind_E) / _wind_rw_ct.get();
+	//dx(X::wind_D) = -_x(X::wind_D) / _wind_rw_ct.get();
 	return dx;
 }
 
 void IEKF::callbackImu(const sensor_combined_s *msg)
 {
-	//ROS_INFO("gyro rate: %f Hz", double(1.0f / dt));
+	//PX4_INFO("gyro rate: %f Hz", double(1.0f / dt));
 	Vector3f gyro_b(
 		msg->gyro_rad[0],
 		msg->gyro_rad[1],
@@ -313,7 +370,7 @@ void IEKF::callbackImu(const sensor_combined_s *msg)
 		msg->magnetometer_ga[1],
 		msg->magnetometer_ga[2]);
 
-	//ROS_INFO("imu callback");
+	//PX4_INFO("imu callback");
 	_u(U::omega_nb_bX) = gyro_b(0);
 	_u(U::omega_nb_bY) = gyro_b(1);
 	_u(U::omega_nb_bZ) = gyro_b(2);
@@ -338,10 +395,6 @@ void IEKF::callbackImu(const sensor_combined_s *msg)
 	}
 
 	if (_attitudeInitialized) {
-
-		// predict driven by gyro callback
-		// deadline is 100 hz
-		uint64_t deadline = _stateTimestamp * 1e3 + 1e9 / 100;
 
 		predictState(msg);
 
@@ -368,14 +421,14 @@ void IEKF::callbackImu(const sensor_combined_s *msg)
 			correctLand(msg->timestamp);
 		}
 
-		float overrunMillis = int32_t(ros::Time::now().toNSec() - deadline) / 1.0e6f;
+		float elapsedMillis = (hrt_absolute_time() - _stateTimestamp) / 1.0e3f;
 
-		if (overrunMillis > 0) {
+		if (elapsedMillis > 10) {
 			_overruns += 1;
 
 			if (_overruns % 100 == 0) {
-				ROS_WARN("late %10.4f msec, overruns: %d",
-					 double(overrunMillis), _overruns);
+				PX4_WARN("late %10.4f msec, overruns: %d",
+					 double(elapsedMillis), _overruns);
 			}
 		}
 
@@ -389,62 +442,17 @@ void IEKF::callbackImu(const sensor_combined_s *msg)
 void IEKF::updateParams()
 {
 	// update all block params
-	//SuperBlock::updateParams();
-
-	// update ros params
-	_nh.getParam("IEKF_GYRO_ND", _gyro_nd);
-	_nh.getParam("IEKF_GYRO_RW_ND", _gyro_rw_nd);
-	_nh.getParam("IEKF_GYRO_RW_CT", _gyro_rw_ct);
-
-	_nh.getParam("IEKF_ACCEL_ND", _accel_nd);
-	_nh.getParam("IEKF_ACCEL_RW_ND", _accel_rw_nd);
-	_nh.getParam("IEKF_ACCEL_RW_CT", _accel_rw_ct);
-
-	_nh.getParam("IEKF_BARO_ND", _baro_nd);
-	_nh.getParam("IEKF_BARO_RW_ND", _baro_rw_nd);
-	_nh.getParam("IEKF_BARO_RW_CT", _baro_rw_ct);
-
-	_nh.getParam("IEKF_MAG_ND", _mag_nd);
-	_nh.getParam("IEKF_MAG_RW_ND", _mag_rw_nd);
-	_nh.getParam("IEKF_MAG_RW_CT", _mag_rw_ct);
-	_nh.getParam("IEKF_MAG_DECL", _mag_decl_deg);
-
-	_nh.getParam("IEKF_GPS_XY_ND", _gps_xy_nd);
-	_nh.getParam("IEKF_GPS_Z_ND", _gps_z_nd);
-	_nh.getParam("IEKF_GPS_VXY_ND", _gps_vxy_nd);
-	_nh.getParam("IEKF_GPS_VZ_ND", _gps_vz_nd);
-
-	_nh.getParam("IEKF_FLOW_ND", _flow_nd);
-
-	_nh.getParam("IEKF_LIDAR_ND", _lidar_nd);
-
-	_nh.getParam("IEKF_SONAR_ND", _sonar_nd);
-
-	_nh.getParam("IEKF_LAND_VXY_ND", _land_vxy_nd);
-	_nh.getParam("IEKF_LAND_VZ_ND", _land_vz_nd);
-	_nh.getParam("IEKF_LAND_AGL_ND", _land_agl_nd);
-
-	_nh.getParam("IEKF_PN_XY_ND", _pn_xy_nd);
-	_nh.getParam("IEKF_PN_VXY_ND", _pn_vxy_nd);
-	_nh.getParam("IEKF_PN_Z_ND", _pn_z_nd);
-	_nh.getParam("IEKF_PN_VZ_ND", _pn_vz_nd);
-	_nh.getParam("IEKF_PN_ROT_ND", _pn_rot_nd);
-	_nh.getParam("IEKF_PN_T_ND", _pn_t_asl_nd);
-	_nh.getParam("IEKF_PN_TS_ND", _pn_t_asl_s_nd);
-
-
-	_nh.getParam("IEKF_RATE_ACCEL", _sensorAccel.getRateMax());
-	_nh.getParam("IEKF_RATE_MAG", _sensorMag.getRateMax());
-	_nh.getParam("IEKF_RATE_BARO", _sensorBaro.getRateMax());
-	_nh.getParam("IEKF_RATE_GPS", _sensorGps.getRateMax());
-	_nh.getParam("IEKF_RATE_AIRSPD", _sensorAirspeed.getRateMax());
-	_nh.getParam("IEKF_RATE_FLOW", _sensorFlow.getRateMax());
-	_nh.getParam("IEKF_RATE_SONAR", _sensorSonar.getRateMax());
-	_nh.getParam("IEKF_RATE_LIDAR", _sensorLidar.getRateMax());
-	_nh.getParam("IEKF_RATE_VISION", _sensorVision.getRateMax());
-	_nh.getParam("IEKF_RATE_MOCAP", _sensorMocap.getRateMax());
-	_nh.getParam("IEKF_RATE_LAND", _sensorLand.getRateMax());
-
+	SuperBlock::updateParams();
+	_sensorMag.setRateMax(_rate_mag.get());
+	_sensorFlow.setRateMax(_rate_flow.get());
+	_sensorAccel.setRateMax(_rate_accel.get());
+	_sensorBaro.setRateMax(_rate_baro.get());
+	_sensorGps.setRateMax(_rate_gps.get());
+	_sensorAirspeed.setRateMax(_rate_airspeed.get());
+	_sensorLidar.setRateMax(_rate_lidar.get());
+	_sensorVision.setRateMax(_rate_vision.get());
+	_sensorMocap.setRateMax(_rate_mocap.get());
+	_sensorLand.setRateMax(_rate_land.get());
 	stateSpaceParamUpdate();
 }
 
@@ -455,11 +463,13 @@ void IEKF::callbackParamUpdate(const parameter_update_s *msg)
 
 void IEKF::initializeAttitude(const sensor_combined_s *msg)
 {
+	PX4_INFO("initialize attitude");
 	// return if no new mag data
 	float dt = 0;
 	uint64_t timestamp = msg->timestamp + msg->magnetometer_timestamp_relative;
 
 	if (!_sensorMag.ready(timestamp, dt)) {
+		PX4_INFO("mag not ready: %10.6g", double(dt));
 		return;
 	}
 
@@ -483,7 +493,7 @@ void IEKF::initializeAttitude(const sensor_combined_s *msg)
 	C_nb.setRow(2, bz);
 
 	// account for magnetic declination
-	Quatf q_nb = Dcmf(Dcmf(AxisAnglef(Vector3f(0, 0, 1), deg2radf * _mag_decl_deg)) * C_nb);
+	Quatf q_nb = Dcmf(Dcmf(AxisAnglef(Vector3f(0, 0, 1), deg2radf * _mag_decl_deg.get())) * C_nb);
 
 	_x(X::q_nb_0) = q_nb(0);
 	_x(X::q_nb_1) = q_nb(1);
@@ -506,7 +516,7 @@ void IEKF::initializeAttitude(const sensor_combined_s *msg)
 	_attitudeInitialized = true;
 
 	Eulerf euler = q_nb;
-	ROS_INFO("initial euler angles (deg) roll: %10.4f pitch: %10.4f yaw: %10.4f",
+	PX4_INFO("initial euler angles (deg) roll: %10.4f pitch: %10.4f yaw: %10.4f",
 		 double(rad2degf * euler(0)),
 		 double(rad2degf * euler(1)),
 		 double(rad2degf * euler(2)));
@@ -528,18 +538,18 @@ void IEKF::predictState(const sensor_combined_s *msg)
 		return;
 	}
 
-	//ROS_INFO("predict state");
+	//PX4_INFO("predict state");
 
 	// normalize quaternions if needed
 	float qNorm = getQuaternionNB().norm();
 
 	if (fabsf(qNorm - 1.0f) > 1e-3f) {
-		ROS_INFO("normalizing quaternion, norm was %6.4f\n",
+		PX4_INFO("normalizing quaternion, norm was %6.4f\n",
 			 double(qNorm));
 		normalizeQuaternion();
 	}
 
-	//ROS_INFO("prediction rate: %10.4g Hz", double(1/dt));
+	//PX4_INFO("prediction rate: %10.4g Hz", double(1/dt));
 
 	// continuous time kalman filter prediction
 	// integrate runge kutta 4th order
@@ -553,10 +563,10 @@ void IEKF::predictState(const sensor_combined_s *msg)
 	k4 = dynamics(h, _x + k3 * h, _u);
 	Vector<float, X::n> dx = (k1 + k2 * 2 + k3 * 2 + k4) * (h / 6);
 
-	//ROS_INFO("dx predict \n");
+	//PX4_INFO("dx predict \n");
 	//dx.print();
-	
-	//ROS_INFO("x");
+
+	//PX4_INFO("x");
 	//_x.print();
 
 	// euler integration
@@ -580,7 +590,7 @@ void IEKF::predictCovariance(const sensor_combined_s *msg)
 		return;
 	}
 
-	//ROS_INFO("predict covariance");
+	//PX4_INFO("predict covariance");
 
 	// propgate covariance using euler integration
 	// save stack space and cpu by doing this incrementally
@@ -599,7 +609,7 @@ Vector<float, X::n> IEKF::computeErrorCorrection(const Vector<float, Xe::n> &d_x
 	Quatf d_q_nb = Quatf(0.0f,
 			     d_xe(Xe::rot_N), d_xe(Xe::rot_E), d_xe(Xe::rot_D)) * q_nb;
 
-	//ROS_INFO("d_q_nb");
+	//PX4_INFO("d_q_nb");
 	//d_q_nb.print();
 	Vector3f d_gyro_bias_b = q_nb.conjugate_inversed(
 					 Vector3f(d_xe(Xe::gyro_bias_N),
@@ -647,36 +657,36 @@ void IEKF::correctionLogic(Vector<float, X::n> &dx) const
 {
 
 	if (getLanded()) {
-		//ROS_INFO("not updating position, landed, agl: %10.4f, landed: %d",
-			 //double(getAgl()), _landed);
+		//PX4_INFO("not updating position, landed, agl: %10.4f, landed: %d",
+		//double(getAgl()), _landed);
 		dx(X::pos_N) = 0;
 		dx(X::pos_E) = 0;
 	}
 
 	if (!getPositionXYValid()) {
-		//ROS_INFO("not updating position, xy not valid");
+		//PX4_INFO("not updating position, xy not valid");
 		dx(X::pos_N) = 0;
 		dx(X::pos_E) = 0;
 	}
 
 	if (!getAltitudeValid()) {
-		//ROS_INFO("not updating position, altitude not valid");
+		//PX4_INFO("not updating position, altitude not valid");
 		dx(X::asl) = 0;
 	}
 
 	if (!getVelocityXYValid()) {
-		//ROS_INFO("not updating velocity xy, not valid");
+		//PX4_INFO("not updating velocity xy, not valid");
 		dx(X::vel_N) = 0;
 		dx(X::vel_E) = 0;
 	}
 
 	if (!getVelocityZValid()) {
-		//ROS_INFO("not updating velocity z, not valid");
+		//PX4_INFO("not updating velocity z, not valid");
 		dx(X::vel_D) = 0;
 	}
 
 	if (!getTerrainValid()) {
-		//ROS_INFO("not updating terrain asl, not valid");
+		//PX4_INFO("not updating terrain asl, not valid");
 		dx(X::terrain_asl) = 0;
 	}
 
@@ -690,7 +700,7 @@ void IEKF::correctionLogic(Vector<float, X::n> &dx) const
 				     _u(U::accel_bZ)).norm() > 1.2f * g;
 
 	if (rotating || accelerating) {
-		//ROS_INFO("not updating bias, rotating or accelerating");
+		//PX4_INFO("not updating bias, rotating or accelerating");
 		dx(X::gyro_bias_bX) = 0;
 		dx(X::gyro_bias_bY) = 0;
 		dx(X::gyro_bias_bZ) = 0;
@@ -708,7 +718,7 @@ void IEKF::boundP()
 		// don't allow NaN or large numbers
 		for (int j = 0; j <= i; j++) {
 			if (!PX4_ISFINITE(_P(i, j))) {
-				ROS_WARN("P(%d, %d) NaN, resetting", i, j);
+				PX4_WARN("P(%d, %d) NaN, resetting", i, j);
 
 				if (i == j) {
 					_P(i, j) = _P0Diag(i);
@@ -731,7 +741,7 @@ void IEKF::boundP()
 		// force non-negative diagonal
 		if (_P(i, i) < 0) {
 
-			//ROS_WARN("P(%d, %d) < 0, setting to 0", i, i, double(0));
+			//PX4_WARN("P(%d, %d) < 0, setting to 0", i, i, double(0));
 			//_P(i, i) = 0;
 			//for (int k = 0; k < Xe::n; k++) {
 			//_P(i, k) = 0;
@@ -747,7 +757,7 @@ void IEKF::boundP()
 			// This isn't strickly the closest PSD matrix
 			// to P, but it does the job of keeping the small
 			// terms from going negative.
-			ROS_WARN("P(%d, %d) < 0, restructuring", i, i, double(0));
+			PX4_WARN("P(%d, %d) < 0, restructuring", i, i, double(0));
 			_P = cholesky(_P);
 			_P *= _P.T();
 		}
@@ -765,23 +775,23 @@ void IEKF::boundX()
 	Quatf q_nb = getQuaternionNB();
 
 	if (fabsf(q_nb.norm() - 1.0f) > 1e-3f) {
-		ROS_INFO("normalizing quaternion, norm was %6.4f\n", double(q_nb.norm()));
+		PX4_INFO("normalizing quaternion, norm was %6.4f\n", double(q_nb.norm()));
 		normalizeQuaternion();
 	}
 
 	// saturate
 	for (int i = 0; i < X::n; i++) {
 		if (!PX4_ISFINITE(_x(i))) {
-			ROS_WARN("x(%d) NaN, setting to %10.4f", i, double(_x0(i)));
+			PX4_WARN("x(%d) NaN, setting to %10.4f", i, double(_x0(i)));
 			_x(i) = _x0(i);
 		}
 
 		if (_x(i) < _xMin(i)) {
-			ROS_WARN("x(%d) < lower bound, saturating", i);
+			PX4_WARN("x(%d) < lower bound, saturating", i);
 			_x(i) = _xMin(i);
 
 		} else if (_x(i) > _xMax(i)) {
-			ROS_WARN("x(%d) > upper bound, saturating", i);
+			PX4_WARN("x(%d) > upper bound, saturating", i);
 			_x(i) = _xMax(i);
 		}
 	}
@@ -793,10 +803,10 @@ void IEKF::publish()
 		return;
 	}
 
-	//ROS_INFO("x:");
+	//PX4_INFO("x:");
 	//_x.print();
 
-	//ROS_INFO("P:");
+	//PX4_INFO("P:");
 	//_P.diag().print();
 
 	float eph = sqrt(_P(Xe::pos_N, Xe::pos_N) + _P(Xe::pos_E, Xe::pos_E));
@@ -809,7 +819,7 @@ void IEKF::publish()
 	Vector3f a_bias_b(_x(X::accel_bias_bX), _x(X::accel_bias_bY), _x(X::accel_bias_bZ));
 	Vector3f a_b_corrected = a_b - a_bias_b;
 	Vector3f a_n = q_nb.conjugate(a_b_corrected);
-	ros::Time now = ros::Time::now();
+	uint64_t now = hrt_absolute_time();
 
 	// predicted airspeed
 	//Vector3f wind_n(_x(X::wind_N), _x(X::wind_E), _x(X::wind_D));
@@ -821,7 +831,7 @@ void IEKF::publish()
 	// publish attitude
 	{
 		vehicle_attitude_s msg = {};
-		msg.timestamp = now.toNSec() / 1e3;
+		msg.timestamp = now;
 		msg.q[0] = _x(X::q_nb_0);
 		msg.q[1] = _x(X::q_nb_1);
 		msg.q[2] = _x(X::q_nb_2);
@@ -829,13 +839,13 @@ void IEKF::publish()
 		msg.rollspeed = _u(U::omega_nb_bX) - _x(X::gyro_bias_bX);
 		msg.pitchspeed = _u(U::omega_nb_bY) - _x(X::gyro_bias_bY);
 		msg.yawspeed = _u(U::omega_nb_bZ) - _x(X::gyro_bias_bZ);
-		_pubAttitude.publish(msg);
+		_pubAttitude.update(&msg);
 	}
 
 	// publish local position
 	{
 		vehicle_local_position_s msg = {};
-		msg.timestamp = now.toNSec() / 1e3;
+		msg.timestamp = now;
 		msg.xy_valid = getPositionXYValid();
 		msg.z_valid = getAltitudeValid();
 		msg.v_xy_valid = getVelocityXYValid();
@@ -865,11 +875,11 @@ void IEKF::publish()
 		msg.ref_alt = _x(X::terrain_asl);
 		msg.dist_bottom = getAgl();
 		msg.dist_bottom_rate = -_x(X::vel_D);
-		msg.surface_bottom_timestamp = now.toNSec() / 1e3;
+		msg.surface_bottom_timestamp = now;
 		msg.dist_bottom_valid = getAglValid();
 		msg.eph = eph;
 		msg.epv = epv;
-		_pubLocalPosition.publish(msg);
+		_pubLocalPosition.update(&msg);
 	}
 
 	// publish global position
@@ -880,9 +890,9 @@ void IEKF::publish()
 		double lat_deg = 0;
 		double lon_deg = 0;
 		_origin.northEastToLatLon(_x(X::pos_N), _x(X::pos_E), lat_deg, lon_deg);
-		//ROS_INFO("alt %10.4f m", double(alt_m));
+		//PX4_INFO("alt %10.4f m", double(alt_m));
 		vehicle_global_position_s msg = {};
-		msg.timestamp = now.toNSec() / 1e3;
+		msg.timestamp = now;
 		msg.time_utc_usec = _gpsUSec;
 		msg.lat = lat_deg;
 		msg.lon = lon_deg;
@@ -902,14 +912,14 @@ void IEKF::publish()
 		msg.terrain_alt_valid = getTerrainValid();
 		msg.dead_reckoning = false;
 		msg.pressure_alt = _baroAsl;
-		_pubGlobalPosition.publish(msg);
+		_pubGlobalPosition.update(&msg);
 	}
 
 	// publish control state
 	{
 		// specific acceleration
 		control_state_s msg = {};
-		msg.timestamp = now.toNSec() / 1e3;
+		msg.timestamp = now;
 		msg.x_acc = a_n(0);
 		msg.y_acc = a_n(1);
 		msg.z_acc = a_n(2);
@@ -940,89 +950,13 @@ void IEKF::publish()
 		msg.pitch_rate = _u(U::omega_nb_bY) - _x(X::gyro_bias_bY);
 		msg.yaw_rate = _u(U::omega_nb_bZ) - _x(X::gyro_bias_bZ);
 		msg.horz_acc_mag = 0;
-		_pubControlState.publish(msg);
-	}
-
-	// estimator state
-	{
-		estimator_state_s msg = {};
-
-		msg.timestamp = now.toNSec() / 1e3;
-		msg.n = X::n;
-
-		for (int i = 0; i < X::n; i++) {
-			msg.id[i] = XIDs[i];
-			msg.sensor[i] = XSensors[i];
-			msg.state[i] = _x(i);
-		}
-
-		_pubEstimatorState.publish(msg);
-	}
-
-	// estimator state std
-	{
-		estimator_state_std_s msg = {};
-
-		msg.timestamp = now.toNSec() / 1e3;
-		msg.n = Xe::n;
-
-		for (int i = 0; i < Xe::n; i++) {
-			msg.id[i] = XeIDs[i];
-			msg.sensor[i] = XeSensors[i];
-			float var = _P(i, i);
-			float std = 0;
-
-			if (var < 0) {
-				// tell user var is neg.
-				// by making std neg.
-				std = -sqrtf(-var);
-
-			} else {
-				std = sqrtf(var);
-			}
-
-			msg.std[i] = std;
-		}
-
-		_pubEstimatorStateStd.publish(msg);
-	}
-
-	// estimator innov
-	{
-		estimator_innov_s msg = {};
-
-		msg.timestamp = now.toNSec() / 1e3;
-		msg.n = Innov::n;
-
-		for (int i = 0; i < Innov::n; i++) {
-			msg.id[i] = InnovIDs[i];
-			msg.sensor[i] = InnovSensors[i];
-			msg.innov[i] = _innov(i);
-		}
-
-		_pubEstimatorInnov.publish(msg);
-	}
-
-	// estimator innov std
-	{
-		estimator_innov_std_s msg = {};
-
-		msg.timestamp = now.toNSec() / 1e3;
-		msg.n = Innov::n;
-
-		for (int i = 0; i < Innov::n; i++) {
-			msg.id[i] = InnovIDs[i];
-			msg.sensor[i] = InnovSensors[i];
-			msg.std[i] = _innovStd(i);
-		}
-
-		_pubEstimatorInnovStd.publish(msg);
+		_pubControlState.update(&msg);
 	}
 
 	// estimator status
 	{
 		estimator_status_s msg = {};
-		msg.timestamp = now.toNSec() / 1e3;
+		msg.timestamp = now;
 		msg.vibe[0] = 0; // TODO
 		msg.vibe[1] = 0; // TODO
 		msg.vibe[2] = 0; // TODO
@@ -1053,7 +987,7 @@ void IEKF::publish()
 		msg.tas_test_ratio = _sensorAirspeed.getBeta();
 		msg.hagl_test_ratio = _sensorLidar.getBeta();
 		msg.solution_status_flags = 0; // TODO
-		_pubEstimatorStatus.publish(msg);
+		_pubEstimatorStatus.update(&msg);
 	}
 
 }
@@ -1085,36 +1019,36 @@ void IEKF::stateSpaceParamUpdate()
 		// derivative of terrain alt is zero
 
 		// derivative of baro bias
-		_A(Xe::baro_bias, Xe::baro_bias) = -1 / _baro_rw_ct;
+		_A(Xe::baro_bias, Xe::baro_bias) = -1 / _baro_rw_ct.get();
 
 		// derivative of gyro bias
-		_A(Xe::gyro_bias_N, Xe::gyro_bias_N) = -1 / _gyro_rw_ct;
-		_A(Xe::gyro_bias_E, Xe::gyro_bias_E) = -1 / _gyro_rw_ct;
-		_A(Xe::gyro_bias_D, Xe::gyro_bias_D) = -1 / _gyro_rw_ct;
+		_A(Xe::gyro_bias_N, Xe::gyro_bias_N) = -1 / _gyro_rw_ct.get();
+		_A(Xe::gyro_bias_E, Xe::gyro_bias_E) = -1 / _gyro_rw_ct.get();
+		_A(Xe::gyro_bias_D, Xe::gyro_bias_D) = -1 / _gyro_rw_ct.get();
 
 		// derivative of accel bias
-		_A(Xe::accel_bias_N, Xe::accel_bias_N) = -1 / _accel_rw_ct;
-		_A(Xe::accel_bias_E, Xe::accel_bias_E) = -1 / _accel_rw_ct;
-		_A(Xe::accel_bias_D, Xe::accel_bias_D) = -1 / _accel_rw_ct;
+		_A(Xe::accel_bias_N, Xe::accel_bias_N) = -1 / _accel_rw_ct.get();
+		_A(Xe::accel_bias_E, Xe::accel_bias_E) = -1 / _accel_rw_ct.get();
+		_A(Xe::accel_bias_D, Xe::accel_bias_D) = -1 / _accel_rw_ct.get();
 	}
 
 	// update Q
 	{
 		// variances
-		float accel_var_rw = _accel_rw_nd * _accel_rw_nd;
-		float gyro_var_rw = _gyro_rw_nd * _gyro_rw_nd;
-		float baro_var_rw = _baro_rw_nd * _baro_rw_nd;
-		float pos_var_xy = _pn_xy_nd * _pn_xy_nd;
-		float pos_var_z = _pn_z_nd * _pn_z_nd;
-		float rot_var = _gyro_nd * _gyro_nd +  \
-				_pn_rot_nd * _pn_rot_nd;
-		float vel_var_xy = _accel_nd * _accel_nd + \
-				   _pn_vxy_nd * _pn_vxy_nd;
-		float vel_var_z = _accel_nd * _accel_nd + \
-				  _pn_vz_nd * _pn_vz_nd;
+		float accel_var_rw = _accel_rw_nd.get() * _accel_rw_nd.get();
+		float gyro_var_rw = _gyro_rw_nd.get() * _gyro_rw_nd.get();
+		float baro_var_rw = _baro_rw_nd.get() * _baro_rw_nd.get();
+		float pos_var_xy = _pn_xy_nd.get() * _pn_xy_nd.get();
+		float pos_var_z = _pn_z_nd.get() * _pn_z_nd.get();
+		float rot_var = _gyro_nd.get() * _gyro_nd.get() +  \
+				_pn_rot_nd.get() * _pn_rot_nd.get();
+		float vel_var_xy = _accel_nd.get() * _accel_nd.get() + \
+				   _pn_vxy_nd.get() * _pn_vxy_nd.get();
+		float vel_var_z = _accel_nd.get() * _accel_nd.get() + \
+				  _pn_vz_nd.get() * _pn_vz_nd.get();
 		float groundSpeedSq = getGroundVelocity().dot(getGroundVelocity());
-		float terrain_var_asl = _pn_t_asl_s_nd * _pn_t_asl_s_nd * groundSpeedSq
-					+ _pn_t_asl_nd * _pn_t_asl_nd ;
+		float terrain_var_asl = _pn_t_asl_s_nd.get() * _pn_t_asl_s_nd.get() * groundSpeedSq
+					+ _pn_t_asl_nd.get() * _pn_t_asl_nd.get() ;
 
 		_Q(Xe::rot_N, Xe::rot_N) = rot_var;
 		_Q(Xe::rot_E, Xe::rot_E) = rot_var;
@@ -1141,7 +1075,7 @@ void IEKF::stateSpaceParamUpdate()
 
 void IEKF::stateSpaceStateUpdate()
 {
-	//ROS_INFO("ccelcovariance prediction rate period: %10.4g", double(dt));
+	//PX4_INFO("ccelcovariance prediction rate period: %10.4g", double(dt));
 	Quatf q_nb = getQuaternionNB();
 
 	// rotation rate
@@ -1168,7 +1102,7 @@ void IEKF::stateSpaceStateUpdate()
 	for (int i = 0; i < 3; i++) {
 		for (int j = 0; j < 3; j++) {
 			// this term isn't helpful, lets bias drift too much
-			_A(Xe::gyro_bias_N + i, Xe::gyro_bias_N + j) = 0*g_tmp(i, j);
+			_A(Xe::gyro_bias_N + i, Xe::gyro_bias_N + j) = 0 * g_tmp(i, j);
 		}
 	}
 }

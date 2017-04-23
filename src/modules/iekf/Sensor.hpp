@@ -83,6 +83,10 @@ public:
 	{
 		_beta = beta;
 	}
+	inline void setRateMax(float rateMax)
+	{
+		_rateMax = rateMax;
+	}
 	inline float getBeta()
 	{
 		return _beta;
@@ -105,15 +109,15 @@ public:
 		_cond = cond;
 
 		if (beta > betaWarn) {
-			ROS_WARN("%s fault: beta %10.4f", _name, double(beta));
+			PX4_WARN("%s fault: beta %10.4f", _name, double(beta));
 		}
 
 		if (beta > _betaMax) {
-			ROS_INFO("beyond beta max, not correcting");
+			PX4_INFO("beyond beta max, not correcting");
 		};
 
 		if (cond > _condMax) {
-			ROS_WARN("%s poorly conditioned %10.4f", _name, double(cond));
+			PX4_WARN("%s poorly conditioned %10.4f", _name, double(cond));
 		}
 	}
 
@@ -128,20 +132,20 @@ public:
 		SquareMatrix<Type, n_y> &S
 	)
 	{
-		//ROS_INFO("R");
+		//PX4_INFO("R");
 		//R.print();
 		dx.setZero();
 		dP.setZero();
 		// tmp = S  = H * P * H^T + R
 		S = H * P * H.T() + R;
-		//ROS_INFO("S");
+		//PX4_INFO("S");
 		//tmp.print();
 		// tmp = L = cholesky(S)
 		SquareMatrix<Type, n_y> tmp = cholesky(S);
-		//ROS_INFO("L");
+		//PX4_INFO("L");
 		//tmp.print();
 		Vector<Type, n_y> d = tmp.diag();
-		//ROS_INFO("diag");
+		//PX4_INFO("diag");
 		//d.print();
 		// tmp = L_I = inv(L)
 		tmp = inv(tmp);

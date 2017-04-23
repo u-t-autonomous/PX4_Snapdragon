@@ -196,7 +196,7 @@ PARAM_DEFINE_FLOAT(IEKF_GPS_XY_ND, 2e0f);
  * @max 1e2
  * @decimal 5
  */
-PARAM_DEFINE_FLOAT(IEKF_GPS_Z_ND, 10e0f);
+PARAM_DEFINE_FLOAT(IEKF_GPS_Z_ND, 10.0f);
 
 /**
  * GPS xy velocity noise density
@@ -233,7 +233,7 @@ PARAM_DEFINE_FLOAT(IEKF_GPS_VZ_ND, 4e-1f);
  * @max 1e0
  * @decimal 5
  */
-PARAM_DEFINE_FLOAT(IEKF_FLOW_ND, 1e-3f);
+PARAM_DEFINE_FLOAT(IEKF_FLOW_ND, 1e-2f);
 
 /*================================================================*/
 /* Lidar */
@@ -327,7 +327,7 @@ PARAM_DEFINE_FLOAT(IEKF_PN_XY_ND, 0);
  * @max 1e0
  * @decimal 5
  */
-PARAM_DEFINE_FLOAT(IEKF_PN_VXY_ND, 1e-1f);
+PARAM_DEFINE_FLOAT(IEKF_PN_VXY_ND, 0);
 
 /**
  * Process noise z position noise density
@@ -338,7 +338,7 @@ PARAM_DEFINE_FLOAT(IEKF_PN_VXY_ND, 1e-1f);
  * @max 1e0
  * @decimal 5
  */
-PARAM_DEFINE_FLOAT(IEKF_PN_Z_ND, 1e-1f);
+PARAM_DEFINE_FLOAT(IEKF_PN_Z_ND, 0);
 
 /**
  * Process noise z velocity noise density
@@ -349,7 +349,7 @@ PARAM_DEFINE_FLOAT(IEKF_PN_Z_ND, 1e-1f);
  * @max 1e0
  * @decimal 5
  */
-PARAM_DEFINE_FLOAT(IEKF_PN_VZ_ND, 1e-1f);
+PARAM_DEFINE_FLOAT(IEKF_PN_VZ_ND, 0);
 
 /**
  * Process noise rotation noise density
@@ -360,7 +360,7 @@ PARAM_DEFINE_FLOAT(IEKF_PN_VZ_ND, 1e-1f);
  * @max 1e0
  * @decimal 5
  */
-PARAM_DEFINE_FLOAT(IEKF_PN_ROT_ND, 1e-3f);
+PARAM_DEFINE_FLOAT(IEKF_PN_ROT_ND, 1e-2f);
 
 /**
  * Process noise terrain asl, const term
@@ -397,7 +397,7 @@ PARAM_DEFINE_FLOAT(IEKF_PN_TS_ND, 1e-1f);
  * @min 0
  * @max 250
  */
-PARAM_DEFINE_FLOAT(IEKF_RATE_ACCEL, 150);
+PARAM_DEFINE_FLOAT(IEKF_RATE_ACCEL, 250);
 
 /**
  * Mag max rate
@@ -407,7 +407,7 @@ PARAM_DEFINE_FLOAT(IEKF_RATE_ACCEL, 150);
  * @min 0
  * @max 250
  */
-PARAM_DEFINE_FLOAT(IEKF_RATE_MAG, 150);
+PARAM_DEFINE_FLOAT(IEKF_RATE_MAG, 250);
 
 /**
  * Baro max rate
@@ -417,7 +417,7 @@ PARAM_DEFINE_FLOAT(IEKF_RATE_MAG, 150);
  * @min 0
  * @max 250
  */
-PARAM_DEFINE_FLOAT(IEKF_RATE_BARO, 150);
+PARAM_DEFINE_FLOAT(IEKF_RATE_BARO, 250);
 
 /**
  * GPS max rate

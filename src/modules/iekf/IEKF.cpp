@@ -153,12 +153,12 @@ IEKF::IEKF() :
 	_xMin(X::vel_N) = -100;
 	_xMin(X::vel_E) = -100;
 	_xMin(X::vel_D) = -100;
-	_xMin(X::gyro_bias_bX) = -0.1;
-	_xMin(X::gyro_bias_bY) = -0.1;
-	_xMin(X::gyro_bias_bZ) = -0.1;
-	_xMin(X::accel_bias_bX) = -1;
-	_xMin(X::accel_bias_bY) = -1;
-	_xMin(X::accel_bias_bZ) = -1;
+	_xMin(X::gyro_bias_bX) = -1;
+	_xMin(X::gyro_bias_bY) = -1;
+	_xMin(X::gyro_bias_bZ) = -1;
+	_xMin(X::accel_bias_bX) = -10;
+	_xMin(X::accel_bias_bY) = -10;
+	_xMin(X::accel_bias_bZ) = -10;
 	_xMin(X::pos_N) = -1e30;
 	_xMin(X::pos_E) = -1e30;
 	_xMin(X::asl) = -1e30;
@@ -175,12 +175,12 @@ IEKF::IEKF() :
 	_xMax(X::vel_N) = 100;
 	_xMax(X::vel_E) = 100;
 	_xMax(X::vel_D) = 100;
-	_xMax(X::gyro_bias_bX) = 0.1;
-	_xMax(X::gyro_bias_bY) = 0.1;
-	_xMax(X::gyro_bias_bZ) = 0.1;
-	_xMax(X::accel_bias_bX) = 1;
-	_xMax(X::accel_bias_bY) = 1;
-	_xMax(X::accel_bias_bZ) = 1;
+	_xMax(X::gyro_bias_bX) = 1;
+	_xMax(X::gyro_bias_bY) = 1;
+	_xMax(X::gyro_bias_bZ) = 1;
+	_xMax(X::accel_bias_bX) = 10;
+	_xMax(X::accel_bias_bY) = 10;
+	_xMax(X::accel_bias_bZ) = 10;
 	_xMax(X::pos_N) = 1e30;
 	_xMax(X::pos_E) = 1e30;
 	_xMax(X::asl) = 1e30;
@@ -204,12 +204,12 @@ IEKF::IEKF() :
 	_P0Diag(Xe::vel_N) = 1;
 	_P0Diag(Xe::vel_E) = 1;
 	_P0Diag(Xe::vel_D) = 1;
-	_P0Diag(Xe::gyro_bias_N) = 1e-1;
-	_P0Diag(Xe::gyro_bias_E) = 1e-1;
-	_P0Diag(Xe::gyro_bias_D) = 1e-1;
-	_P0Diag(Xe::accel_bias_N) = 1e-1;
-	_P0Diag(Xe::accel_bias_E) = 1e-1;
-	_P0Diag(Xe::accel_bias_D) = 1e-1;
+	_P0Diag(Xe::gyro_bias_N) = 1e-2;
+	_P0Diag(Xe::gyro_bias_E) = 1e-2;
+	_P0Diag(Xe::gyro_bias_D) = 1e-2;
+	_P0Diag(Xe::accel_bias_N) = 1e-2;
+	_P0Diag(Xe::accel_bias_E) = 1e-2;
+	_P0Diag(Xe::accel_bias_D) = 1e-2;
 	_P0Diag(Xe::pos_N) = 1;
 	_P0Diag(Xe::pos_E) = 1;
 	_P0Diag(Xe::asl) = 1;
@@ -814,6 +814,8 @@ void IEKF::publish()
 	Quatf q_nb(
 		_x(X::q_nb_0), _x(X::q_nb_1),
 		_x(X::q_nb_2), _x(X::q_nb_3));
+	// normalize published quaternion
+	q_nb.normalize();
 	Euler<float> euler_nb = q_nb;
 	Vector3f a_b(_u(U::accel_bX), _u(U::accel_bY), _u(U::accel_bZ));
 	Vector3f a_bias_b(_x(X::accel_bias_bX), _x(X::accel_bias_bY), _x(X::accel_bias_bZ));
@@ -832,10 +834,11 @@ void IEKF::publish()
 	{
 		vehicle_attitude_s msg = {};
 		msg.timestamp = now;
-		msg.q[0] = _x(X::q_nb_0);
-		msg.q[1] = _x(X::q_nb_1);
-		msg.q[2] = _x(X::q_nb_2);
-		msg.q[3] = _x(X::q_nb_3);
+
+		msg.q[0] = q_nb(0);
+		msg.q[1] = q_nb(1);
+		msg.q[2] = q_nb(2);
+		msg.q[3] = q_nb(3);
 		msg.rollspeed = _u(U::omega_nb_bX) - _x(X::gyro_bias_bX);
 		msg.pitchspeed = _u(U::omega_nb_bY) - _x(X::gyro_bias_bY);
 		msg.yawspeed = _u(U::omega_nb_bZ) - _x(X::gyro_bias_bZ);

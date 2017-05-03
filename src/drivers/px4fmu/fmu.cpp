@@ -119,6 +119,7 @@ enum PortMode {
 	PORT_FULL_GPIO,
 	PORT_FULL_SERIAL,
 	PORT_FULL_PWM,
+	PORT_RC_IN,
 	PORT_GPIO_AND_SERIAL,
 	PORT_PWM_AND_SERIAL,
 	PORT_PWM_AND_GPIO,
@@ -1026,6 +1027,12 @@ PX4FMU::task_spawn(int argc, char *argv[])
 			_task_id = -1;
 			return -errno;
 		}
+	}
+
+	// wait until task is up & running (the mode_* commands depend on it)
+	if (wait_until_running() < 0) {
+		_task_id = -1;
+		return -1;
 	}
 
 	return PX4_OK;
@@ -2973,6 +2980,10 @@ PX4FMU::fmu_new_mode(PortMode new_mode)
 #endif
 		break;
 
+	case PORT_RC_IN:
+		servo_mode = PX4FMU::MODE_NONE;
+		break;
+
 	case PORT_PWM1:
 		/* select 2-pin PWM mode */
 		servo_mode = PX4FMU::MODE_1PWM;
@@ -3422,7 +3433,7 @@ int PX4FMU::custom_command(int argc, char *argv[])
 		new_mode = PORT_FULL_GPIO;
 
 	} else if (!strcmp(verb, "mode_rcin")) {
-		return 0;
+		new_mode = PORT_RC_IN;
 
 	} else if (!strcmp(verb, "mode_pwm")) {
 		new_mode = PORT_FULL_PWM;
@@ -3612,6 +3623,8 @@ int PX4FMU::print_status()
 	case MODE_5CAP: mode_str = "cap5"; break;
 
 	case MODE_6CAP: mode_str = "cap6"; break;
+
+	case MODE_NONE: mode_str = "no pwm"; break;
 
 	default:
 		break;

@@ -36,7 +36,7 @@ px4_add_module(
 	STACK_MAIN 2500
 	COMPILE_FLAGS
 	SRCS
-		pwm.c
+		pwm.cpp
 	DEPENDS
 		platforms__common
 	)

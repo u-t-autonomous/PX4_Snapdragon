@@ -197,7 +197,7 @@ ramtron_attach(void)
 	SPI_SETFREQUENCY(spi, 10 * 1000 * 1000);
 	SPI_SETBITS(spi, 8);
 	SPI_SETMODE(spi, SPIDEV_MODE3);
-	SPI_SELECT(spi, SPIDEV_FLASH, false);
+	SPI_SELECT(spi, SPIDEV_FLASH(0), false);
 
 	if (spi == NULL) {
 		errx(1, "failed to locate spi bus");

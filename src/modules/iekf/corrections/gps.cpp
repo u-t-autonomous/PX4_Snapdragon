@@ -144,7 +144,7 @@ void IEKF::correctGps(const vehicle_gps_position_s *msg)
 	_innovStd(Innov::GPS_vel_E) = sqrtf(S(1, 1));
 	_innovStd(Innov::GPS_vel_D) = sqrtf(S(2, 2));
 	_innovStd(Innov::GPS_pos_N) = sqrtf(S(3, 3));
-	_innovStd(Innov::GPS_pos_N) = sqrtf(S(4, 4));
+	_innovStd(Innov::GPS_pos_E) = sqrtf(S(4, 4));
 	_innovStd(Innov::GPS_asl) = sqrtf(S(5, 5));
 
 	if (_sensorGps.shouldCorrect()) {

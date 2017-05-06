@@ -221,6 +221,56 @@ PARAM_DEFINE_FLOAT(IEKF_GPS_VXY_ND, 2e-1f);
 PARAM_DEFINE_FLOAT(IEKF_GPS_VZ_ND, 4e-1f);
 
 /*================================================================*/
+/* VISION */
+/*================================================================*/
+
+/**
+ * Vision xy position noise density
+ *
+ * @group IEKF
+ * @unit (m) / sqrt(Hz)
+ * @min 0
+ * @max 1e2
+ * @decimal 5
+ */
+PARAM_DEFINE_FLOAT(IEKF_VIS_XY_ND, 2e0f);
+
+/**
+ * Vision z position noise density
+ *
+ * @group IEKF
+ * @unit (m) / sqrt(Hz)
+ * @min 0
+ * @max 1e2
+ * @decimal 5
+ */
+PARAM_DEFINE_FLOAT(IEKF_VIS_Z_ND, 10.0f);
+
+/**
+ * Vision xy velocity noise density
+ *
+ * @group IEKF
+ * @unit (m/s) / sqrt(Hz)
+ * @min 0
+ * @max 1e2
+ * @decimal 5
+ */
+PARAM_DEFINE_FLOAT(IEKF_VIS_VXY_ND, 2e-1f);
+
+/**
+ * Vision z velocity noise density
+ *
+ * @group IEKF
+ * @unit (m/s) / sqrt(Hz)
+ * @min 0
+ * @max 1e2
+ * @decimal 5
+ */
+PARAM_DEFINE_FLOAT(IEKF_VIS_VZ_ND, 4e-1f);
+
+
+
+/*================================================================*/
 /* Optical Flow */
 /*================================================================*/
 

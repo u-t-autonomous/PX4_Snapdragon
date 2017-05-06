@@ -334,6 +334,10 @@ private:
 	BlockParamFloat _gps_z_nd;
 	BlockParamFloat _gps_vxy_nd;
 	BlockParamFloat _gps_vz_nd;
+	BlockParamFloat _vision_xy_nd;
+	BlockParamFloat _vision_z_nd;
+	BlockParamFloat _vision_vxy_nd;
+	BlockParamFloat _vision_vz_nd;
 	BlockParamFloat _flow_nd;
 	BlockParamFloat _lidar_nd;
 	BlockParamFloat _sonar_nd;

@@ -155,6 +155,19 @@ struct Y_gps {
 };
 
 /**
+ * Vision measurement
+ */
+struct Y_vision {
+	static const uint8_t pos_N = 0;
+	static const uint8_t pos_E = 1;
+	static const uint8_t pos_D = 2;
+	static const uint8_t vel_N = 3;
+	static const uint8_t vel_E = 4;
+	static const uint8_t vel_D = 5;
+	static const uint8_t n = 6;
+};
+
+/**
  * Baro measurement
  */
 struct Y_baro {

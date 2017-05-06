@@ -196,6 +196,7 @@ then
 	set MAV_TYPE none
 	set FAILSAFE none
 	set USE_IO yes
+	set LOGGER_BUF 16
 
 	#
 	# Set USE_IO flag
@@ -259,10 +260,24 @@ then
 	#
 	if param compare SYS_AUTOSTART 0
 	then
+		ekf2 start
 	else
 		sh /etc/init.d/rc.autostart
 	fi
 	unset MODE
+
+	#
+	# If mount (gimbal) control is enabled and output mode is AUX, set the aux
+	# mixer to mount (override the airframe-specific MIXER_AUX setting)
+	#
+	if param compare MNT_MODE_IN -1
+	then
+	else
+		if param compare MNT_MODE_OUT 0
+		then
+			set MIXER_AUX mount
+		fi
+	fi
 
 	#
 	# Wipe incompatible settings for boards not having two outputs
@@ -725,6 +740,7 @@ then
 	then
 		if uavcan start
 		then
+			set LOGGER_BUF 7
 			uavcan start fw
 		else
 			tone_alarm ${TUNE_ERR}
@@ -743,6 +759,14 @@ then
 			if ll40ls start pwm
 			then
 			fi
+		fi
+	fi
+
+	# Lidar-Lite on I2C
+	if param compare SENS_EN_LL40LS 2
+	then
+		if ll40ls start i2c
+		then
 		fi
 	fi
 
@@ -854,9 +878,10 @@ then
 			then
 				set LOGGER_ARGS "-m mavlink"
 			fi
-			if logger start -b 16 -t ${LOGGER_ARGS}
+			if logger start -b ${LOGGER_BUF} -t ${LOGGER_ARGS}
 			then
 			fi
+			unset LOGGER_BUF
 			unset LOGGER_ARGS
 		fi
 	fi

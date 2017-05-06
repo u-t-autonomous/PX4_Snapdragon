@@ -31,12 +31,14 @@
 #
 ############################################################################
 px4_add_module(
-	MODULE drivers__mpu6500
-	MAIN mpu6500
+	MODULE drivers__bmi055
+	MAIN bmi055
 	STACK_MAIN 1200
 	COMPILE_FLAGS
-	SRCS
-		mpu6500.cpp
+	SRCS		
+		bmi055_accel.cpp
+		bmi055_gyro.cpp
+		bmi055_main.cpp
 	DEPENDS
 		platforms__common
 	)

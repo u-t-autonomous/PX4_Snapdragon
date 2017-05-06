@@ -15,8 +15,7 @@
 # @output AUX1 Mount pitch
 # @output AUX2 Mount roll
 # @output AUX3 Mount yaw
-# @output AUX4 Mount mode
-# @output AUX5 Mount retract
+# @output AUX4 Mount retract
 #
 # @maintainer Leon Mueller <thedevleon>
 #
@@ -30,5 +29,3 @@ set MIXER_AUX mount
 set PWM_AUX_OUT 123456
 set PWM_AUX_RATE 50
 
-# Start mount driver
-vmount start

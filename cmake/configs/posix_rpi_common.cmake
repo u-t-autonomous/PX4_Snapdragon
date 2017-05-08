@@ -74,7 +74,7 @@ set(config_module_list
 	#
 	drivers/gps
 	drivers/navio_sysfs_rc_in
-	drivers/navio_sysfs_pwm_out
+	drivers/rpi_pwm_out
 	drivers/navio_gpio
 	drivers/navio_rgbled
 	drivers/pwm_out_sim

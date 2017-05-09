@@ -64,16 +64,14 @@ public:
 	bool ready(uint64_t timestampNew, float &dt)
 	{
 		// return if no new data
-		if (timestampNew != _timestamp) {
-			dt = (timestampNew - _timestamp) / 1.0e6f;
+		if (timestampNew == _timestamp) {
+			return false;
+		}
 
-			if (dt <= 0 || ((1.0f / dt) > _rateMax)) {
-				return false;
-			}
+		dt = (timestampNew - _timestamp) / 1.0e6f;
+		_timestamp = timestampNew;
 
-			_timestamp = timestampNew;
-
-		} else {
+		if (dt <= 0 || ((1.0f / dt) > _rateMax)) {
 			return false;
 		}
 

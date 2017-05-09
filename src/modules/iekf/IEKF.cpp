@@ -139,7 +139,7 @@ IEKF::IEKF() :
 	_rate_mag(this, "RATE_MAG"),
 	_rate_baro(this, "RATE_BARO"),
 	_rate_gps(this, "RATE_GPS"),
-	_rate_airspeed(this, "RATE_AIRSPEED"),
+	_rate_airspeed(this, "RATE_AIRSPD"),
 	_rate_flow(this, "RATE_FLOW"),
 	_rate_sonar(this, "RATE_SONAR"),
 	_rate_lidar(this, "RATE_LIDAR"),
@@ -289,6 +289,10 @@ void IEKF::update()
 		vehicle_land_detected_s msg;
 		_subLand.update(&msg);
 		callbackLand(&msg);
+	}
+
+	if (_subParamUpdate.updated()) {
+		updateParams();
 	}
 
 	publish();
@@ -458,11 +462,6 @@ void IEKF::updateParams()
 	_sensorMocap.setRateMax(_rate_mocap.get());
 	_sensorLand.setRateMax(_rate_land.get());
 	stateSpaceParamUpdate();
-}
-
-void IEKF::callbackParamUpdate(const parameter_update_s *msg)
-{
-	updateParams();
 }
 
 void IEKF::initializeAttitude(const sensor_combined_s *msg)

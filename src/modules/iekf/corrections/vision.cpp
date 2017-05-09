@@ -35,7 +35,6 @@
 
 void IEKF::correctVision(const vehicle_local_position_s *msg)
 {
-
 	float dt = 0;
 
 	if (!_sensorVision.ready(msg->timestamp, dt)) {
@@ -116,10 +115,13 @@ void IEKF::correctVision(const vehicle_local_position_s *msg)
 	_innovStd(Innov::VISION_pos_D) = sqrtf(S(5, 5));
 
 	if (_sensorVision.shouldCorrect()) {
+		PX4_INFO("doing vision correction");
 		// don't allow attitude correction
 		nullAttitudeCorrection(_dxe);
 		Vector<float, X::n> dx = computeErrorCorrection(_dxe);
 		incrementX(dx);
 		incrementP(_dP);
+	} else {
+		PX4_INFO("aborting vision correction");
 	}
 }

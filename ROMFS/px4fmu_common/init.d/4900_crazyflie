@@ -12,6 +12,8 @@
 #
 # @type Quadrotor x
 #
+# @maintainer Dennis Shtatov <densht@gmail.com>
+#
 
 sh /etc/init.d/4001_quad_x
 

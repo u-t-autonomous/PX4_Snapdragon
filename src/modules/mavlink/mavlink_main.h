@@ -135,7 +135,7 @@ public:
 	 * This is primarily intended for analysis and
 	 * not intended for normal operation
 	 */
-	static int		set_verbose_all_instances();
+	static int		set_verbose_all_instances(bool enabled);
 
 	static bool		instance_exists(const char *device_name, Mavlink *self);
 

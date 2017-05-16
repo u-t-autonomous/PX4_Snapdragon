@@ -203,6 +203,8 @@ static hrt_abstime last_gpos_fail_time_us = 0;	// Last time that the global posi
 static hrt_abstime last_lvel_fail_time_us = 0;	// Last time that the local velocity validity recovery check failed (usec)
 static hrt_abstime last_gvel_fail_time_us = 0;	// Last time that the global velocity validity recovery check failed (usec)
 
+static hrt_abstime gpos_last_update_time_us = 0; // last time a global position update was received (usec)
+
 /* pre-flight EKF checks */
 static float max_ekf_pos_ratio = 0.5f;
 static float max_ekf_vel_ratio = 0.5f;
@@ -1224,6 +1226,8 @@ bool handle_command(struct vehicle_status_s *status_local, const struct safety_s
 	case vehicle_command_s::VEHICLE_CMD_DO_TRIGGER_CONTROL:
 	case vehicle_command_s::VEHICLE_CMD_DO_DIGICAM_CONTROL:
 	case vehicle_command_s::VEHICLE_CMD_DO_SET_CAM_TRIGG_DIST:
+	case vehicle_command_s::VEHICLE_CMD_DO_SET_CAM_TRIGG_INTERVAL:
+	case vehicle_command_s::VEHICLE_CMD_SET_CAMERA_MODE:
 	case vehicle_command_s::VEHICLE_CMD_DO_CHANGE_SPEED:
 	case vehicle_command_s::VEHICLE_CMD_DO_LAND_START:
 	case vehicle_command_s::VEHICLE_CMD_DO_GO_AROUND:
@@ -1377,6 +1381,9 @@ int commander_thread_main(int argc, char *argv[])
 	/* pre-flight IMU consistency checks */
 	param_t _param_max_imu_acc_diff = param_find("COM_ARM_IMU_ACC");
 	param_t _param_max_imu_gyr_diff = param_find("COM_ARM_IMU_GYR");
+
+	/* failsafe response to loss of navigation accuracy */
+	param_t _param_posctl_nav_loss_act = param_find("COM_POSCTL_NAVL");
 
 	// These are too verbose, but we will retain them a little longer
 	// until we are sure we really don't need them.
@@ -1757,6 +1764,7 @@ int commander_thread_main(int argc, char *argv[])
 	float offboard_loss_timeout = 0.0f;
 	int32_t offboard_loss_act = 0;
 	int32_t offboard_loss_rc_act = 0;
+	int32_t posctl_nav_loss_act = 0;
 
 	int32_t geofence_action = 0;
 
@@ -1905,6 +1913,9 @@ int commander_thread_main(int argc, char *argv[])
 			/* pre-flight IMU consistency checks */
 			param_get(_param_max_imu_acc_diff, &max_imu_acc_diff);
 			param_get(_param_max_imu_gyr_diff, &max_imu_gyr_diff);
+
+			/* failsafe response to loss of navigation accuracy */
+			param_get(_param_posctl_nav_loss_act, &posctl_nav_loss_act);
 
 			param_init_forced = false;
 		}
@@ -2149,14 +2160,23 @@ int commander_thread_main(int argc, char *argv[])
 		// Check if quality checking of position accuracy and consistency is to be performed
 		bool run_quality_checks = !status_flags.circuit_breaker_engaged_posfailure_check;
 
-		/* update global position estimate */
+		/* update global position estimate and check for timeout */
 		bool gpos_updated =  false;
 		orb_check(global_position_sub, &gpos_updated);
-
 		if (gpos_updated) {
-			/* position changed */
 			orb_copy(ORB_ID(vehicle_global_position), global_position_sub, &global_position);
+			gpos_last_update_time_us = hrt_absolute_time();
+		}
 
+		// Perform a separate timeout validity test on the global position data.
+		// This is necessary because the global position message is by definition valid if published.
+		if ((hrt_absolute_time() - gpos_last_update_time_us) > 1000000) {
+			status_flags.condition_global_position_valid = false;
+			status_flags.condition_global_velocity_valid = false;
+		}
+
+		/* run global position accuracy checks */
+		if (gpos_updated) {
 			if (run_quality_checks) {
 				check_posvel_validity(true, global_position.eph, eph_threshold, global_position.timestamp, &last_gpos_fail_time_us, &gpos_probation_time_us, &status_flags.condition_global_position_valid, &status_changed);
 				check_posvel_validity(true, global_position.evh, evh_threshold, global_position.timestamp, &last_gvel_fail_time_us, &gvel_probation_time_us, &status_flags.condition_global_velocity_valid, &status_changed);
@@ -3065,7 +3085,8 @@ int commander_thread_main(int argc, char *argv[])
 											   land_detector.landed,
 											   (link_loss_actions_t)rc_loss_act,
 											   offboard_loss_act,
-											   offboard_loss_rc_act);
+											   offboard_loss_rc_act,
+											   posctl_nav_loss_act);
 
 		if (status.failsafe != failsafe_old)
 		{
@@ -3783,7 +3804,7 @@ check_posvel_validity(bool data_valid, float data_accuracy, float required_accur
 
 	// Check accuracy with hysteresis in both test level and time
 	bool pos_status_changed = false;
-	if (*valid_state && data_accuracy > required_accuracy * 2.5f) {
+	if (*valid_state && ((data_accuracy > required_accuracy * 2.5f) || !data_valid)) {
 		pos_inaccurate = true;
 		pos_status_changed = true;
 		*last_fail_time_us = now;

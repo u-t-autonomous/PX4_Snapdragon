@@ -73,6 +73,7 @@ bool
 MissionBlock::is_mission_item_reached()
 {
 	/* handle non-navigation or indefinite waypoints */
+
 	switch (_mission_item.nav_cmd) {
 	case NAV_CMD_DO_SET_SERVO:
 		return true;
@@ -86,6 +87,7 @@ MissionBlock::is_mission_item_reached()
 		return false;
 
 	case NAV_CMD_DO_LAND_START:
+	case NAV_CMD_DO_TRIGGER_CONTROL:
 	case NAV_CMD_DO_DIGICAM_CONTROL:
 	case NAV_CMD_IMAGE_START_CAPTURE:
 	case NAV_CMD_IMAGE_STOP_CAPTURE:
@@ -96,6 +98,8 @@ MissionBlock::is_mission_item_reached()
 	case NAV_CMD_DO_SET_ROI:
 	case NAV_CMD_ROI:
 	case NAV_CMD_DO_SET_CAM_TRIGG_DIST:
+	case NAV_CMD_DO_SET_CAM_TRIGG_INTERVAL:
+	case NAV_CMD_SET_CAMERA_MODE:
 		return true;
 
 	case NAV_CMD_DO_VTOL_TRANSITION:
@@ -445,6 +449,7 @@ MissionBlock::mission_item_to_vehicle_command(const struct mission_item_s *item,
 void
 MissionBlock::issue_command(const struct mission_item_s *item)
 {
+
 	if (item_contains_position(item)) {
 		return;
 	}
@@ -483,7 +488,7 @@ MissionBlock::issue_command(const struct mission_item_s *item)
 float
 MissionBlock::get_time_inside(const struct mission_item_s &item)
 {
-	if (item.nav_cmd == NAV_CMD_TAKEOFF) {
+	if (item.nav_cmd != NAV_CMD_TAKEOFF) {
 		return item.time_inside;
 	}
 
@@ -686,11 +691,11 @@ MissionBlock::set_takeoff_item(struct mission_item_s *item, float abs_altitude, 
 	/* use current position */
 	item->lat = _navigator->get_global_position()->lat;
 	item->lon = _navigator->get_global_position()->lon;
+	item->yaw = _navigator->get_global_position()->yaw;
 
 	item->altitude = abs_altitude;
 	item->altitude_is_relative = false;
 
-	item->yaw = NAN;
 	item->loiter_radius = _navigator->get_loiter_radius();
 	item->pitch_min = min_pitch;
 	item->autocontinue = false;

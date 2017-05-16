@@ -1595,7 +1595,12 @@ void MulticopterPositionControl::control_auto(float dt)
 		}
 
 	} else {
-		/* no waypoint, do nothing, setpoint was already reset */
+
+		/* idle or triplet not valid, set velocity setpoint to zero */
+		_vel_sp.zero();
+		_run_pos_control = false;
+		_run_alt_control = false;
+
 	}
 }
 
@@ -1664,6 +1669,12 @@ MulticopterPositionControl::do_control(float dt)
 		/* manual control */
 		control_manual(dt);
 		_mode_auto = false;
+
+		/* we set tiplets to false
+		 * this ensures that when switching to auto, the position
+		 * controller will not use the old triplets but waits until triplets
+		 * have been updated */
+		_pos_sp_triplet.current.valid = false;
 
 		_hold_offboard_xy = false;
 		_hold_offboard_z = false;
@@ -2307,6 +2318,7 @@ MulticopterPositionControl::task_main()
 			_reset_int_xy = true;
 			_reset_yaw_sp = true;
 			_yaw_takeoff = _yaw;
+
 		}
 
 		was_armed = _control_mode.flag_armed;
@@ -2325,6 +2337,11 @@ MulticopterPositionControl::task_main()
 		if (!_vehicle_land_detected.landed && was_landed) {
 			_in_takeoff = true;
 			_takeoff_vel_limit = -0.5f;
+		}
+
+		/* set triplets to invalid if we just landed */
+		if (_vehicle_land_detected.landed && !was_landed) {
+			_pos_sp_triplet.current.valid = false;
 		}
 
 		was_landed = _vehicle_land_detected.landed;

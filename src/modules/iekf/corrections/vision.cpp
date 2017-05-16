@@ -121,6 +121,7 @@ void IEKF::correctVision(const vehicle_local_position_s *msg)
 		Vector<float, X::n> dx = computeErrorCorrection(_dxe);
 		incrementX(dx);
 		incrementP(_dP);
+
 	} else {
 		PX4_INFO("aborting vision correction");
 	}

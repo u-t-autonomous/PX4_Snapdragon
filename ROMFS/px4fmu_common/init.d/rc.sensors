@@ -409,6 +409,10 @@ then
 	lsm303d start
 fi
 
+if ms5525_airspeed start
+then
+fi
+
 if meas_airspeed start
 then
 else

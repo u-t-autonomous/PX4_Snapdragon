@@ -5,12 +5,13 @@ px4_nuttx_generate_builtin_commands(
 		${config_extra_builtin_cmds}
 	)
 
+add_subdirectory(${PX4_SOURCE_DIR}/NuttX ${BOARD})
+set(nuttx_export_dir ${PX4_BINARY_DIR}/${BOARD}/nuttx-export)
+
 # add executable
-add_executable(firmware_nuttx
-	builtin_commands.c)
-
-
-set(nuttx_export_dir ${PX4_BINARY_DIR}/${BOARD}/NuttX/nuttx/nuttx-export)
+add_executable(firmware_nuttx builtin_commands.c)
+#target_link_libraries(firmware_nuttx apps nuttx)
+add_dependencies(firmware_nuttx apps nuttx)
 
 set(link_libs
 	apps nuttx m gcc

@@ -38,3 +38,12 @@
 [submodule "src/drivers/gps/devices"]
 	path = src/drivers/gps/devices
 	url = https://github.com/PX4/GpsDrivers.git
+[submodule "NuttX/nuttx"]
+	path = NuttX/nuttx
+	url = https://github.com/dagar/nuttx.git
+[submodule "NuttX/apps"]
+	path = NuttX/apps
+	url = https://github.com/dagar/apps.git
+[submodule "NuttX/tools"]
+	path = NuttX/tools
+	url = https://bitbucket.org/nuttx/tools

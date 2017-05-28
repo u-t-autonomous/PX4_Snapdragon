@@ -32,7 +32,6 @@
 ############################################################################
 set(depends
 	msg_gen
-	prebuild_targets
 	git_mavlink
 	git_uavcan
 	git_matrix

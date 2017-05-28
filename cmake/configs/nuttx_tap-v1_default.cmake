@@ -116,14 +116,7 @@ set(config_extra_builtin_cmds
 	sercon
 	)
 
-set(config_io_board
-	)
-
-set(config_extra_libs
-	)
-
-set(config_io_extra_libs
-	)
+set(config_io_board)
 
 add_custom_target(sercon)
 set_target_properties(sercon PROPERTIES

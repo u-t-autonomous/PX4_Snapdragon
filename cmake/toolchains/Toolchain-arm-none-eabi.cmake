@@ -72,8 +72,6 @@ foreach(tool ddd)
 	endif()
 endforeach()
 
-message(STATUS "Cross-compiling with the gcc-arm-embedded toolchain")
-
 # TODO - move processor handling into toolchain file
 set(cpu_flags)
 if (CMAKE_SYSTEM_PROCESSOR STREQUAL "cortex-m7")

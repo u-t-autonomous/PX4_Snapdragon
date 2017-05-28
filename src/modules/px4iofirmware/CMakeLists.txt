@@ -47,10 +47,6 @@ set(definitions)
 
 px4_nuttx_configure(HWCLASS m3 CONFIG nsh)
 
-px4_os_prebuild_targets(OUT io_prebuild_targets
-	BOARD ${config_io_board}
-	THREADS ${THREADS})
-
 px4_os_add_flags(
 	BOARD ${config_io_board}
 	C_FLAGS c_flags
@@ -64,6 +60,10 @@ px4_os_add_flags(
 px4_join(OUT CMAKE_EXE_LINKER_FLAGS LIST "${exe_linker_flags}" GLUE " ")
 px4_join(OUT CMAKE_C_FLAGS LIST "${c_flags};${optimization_flags}" GLUE " ")
 px4_join(OUT CMAKE_CXX_FLAGS LIST "${cxx_flags};${optimization_flags}" GLUE " ")
+
+set(NUTTX_CONFIG ${config_io_board})
+set(NUTTX_CONFIG_TYPE nsh)
+add_subdirectory(${PX4_SOURCE_DIR}/NuttX ${config_io_board}_build)
 
 include_directories(
 	${include_dirs}
@@ -110,38 +110,45 @@ elseif(${config_io_board} STREQUAL "px4io-v2")
 		)
 endif()
 
-set(fw_io_name ${config_io_board})
+set(fw_io_name "${config_io_board}")
 
 add_executable(${fw_io_name} ${srcs})
 
 add_dependencies(${fw_io_name}
-	io_prebuild_targets
 	mixer_gen
 	msg_gen
-	nuttx_export_${config_io_board}
+	nuttx_${config_io_board}
+	apps_${config_io_board}
 	)
 
-set(nuttx_export_dir ${PX4_BINARY_DIR}/${config_io_board}/NuttX/nuttx/nuttx-export)
-set(main_link_flags
-	"-T${nuttx_export_dir}/build/ld.script"
-	"-Wl,-Map=${PX4_BINARY_DIR}/${config_io_board}/main.map"
-	)
-px4_join(OUT main_link_flags LIST ${main_link_flags} GLUE " ")
-set_target_properties(${fw_io_name} PROPERTIES LINK_FLAGS ${main_link_flags})
+set_target_properties(${fw_io_name} PROPERTIES LINK_FLAGS
+		"-T${PX4_SOURCE_DIR}/NuttX/configs/${config_io_board}/scripts/ld.script
+		-Wl,-Map=${PX4_BINARY_DIR}/${config_io_board}/main.map"
+		)
 
 target_link_libraries(${fw_io_name}
-	-Wl,--start-group
-	apps nuttx nosys m gcc
-	${config_io_extra_libs}
-	-Wl,--end-group
+		-Wl,--start-group
+		apps_${config_io_board}
+		nuttx_${config_io_board}
+		nosys
+		m
+		gcc
+		-Wl,--end-group
 	)
 
-px4_nuttx_create_bin(
-	OUT ${CMAKE_CURRENT_BINARY_DIR}/${fw_io_name}.bin
-	EXE ${fw_io_name}
+add_custom_command(TARGET ${fw_io_name}
+                   POST_BUILD
+                   COMMAND size ${fw_io_name}
+                   )
+
+set(fw_io_bin ${PX4_BINARY_DIR}/ROMFS/${config_romfs_root}/extras/${fw_io_name}.bin)
+set(fw_io_bin ${fw_io_bin} PARENT_SCOPE)
+add_custom_command(OUTPUT ${fw_io_bin}
+	COMMAND cmake -E make_directory ${PX4_BINARY_DIR}/ROMFS/${config_romfs_root}/extras/
+	COMMAND ${CMAKE_OBJCOPY} -O binary ${fw_io_name} ${fw_io_bin}
+	DEPENDS ${fw_io_name}
 	)
 
-add_custom_target(fw_io DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${fw_io_name}.bin)
-
+add_custom_target(fw_io DEPENDS ${fw_io_bin})
 
 # vim: set noet ft=cmake fenc=utf-8 ff=unix : 

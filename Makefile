@@ -167,7 +167,7 @@ excelsior_legacy_default: posix_excelsior_legacy qurt_excelsior_legacy
 # Other targets
 # --------------------------------------------------------------------
 
-.PHONY: qgc_firmware alt_firmware checks_bootloaders uavcan_firmware sizes check quick_check
+.PHONY: qgc_firmware alt_firmware checks_bootloaders uavcan_firmware check quick_check
 
 # QGroundControl flashable NuttX firmware
 qgc_firmware: \
@@ -184,7 +184,6 @@ qgc_firmware: \
 	check_px4fmu-v4pro_default \
 	check_px4fmu-v5_default \
 	check_tap-v1_default \
-	check_sizes
 
 # Other NuttX firmware
 alt_firmware: \
@@ -195,7 +194,6 @@ alt_firmware: \
 	check_px4fmu-v5_default \
 	check_px4nucleoF767ZI-v1_default \
 	check_s2740vc-v1_default \
-	check_sizes
 
 checks_bootloaders: \
 	check_esc35-v1_bootloader \
@@ -204,7 +202,6 @@ checks_bootloaders: \
 	check_px4flow-v2_bootloader \
 	check_s2740vc-v1_bootloader \
 # not fitting in flash	check_zubaxgnss-v1_bootloader \
-	check_sizes
 
 uavcan_firmware:
 	$(call colorecho,"Downloading and building Vector control (FOC) firmware for the S2740VC and PX4ESC 1.6")
@@ -212,9 +209,6 @@ uavcan_firmware:
 	@git clone --quiet --depth 1 https://github.com/thiemar/vectorcontrol.git && cd vectorcontrol
 	@BOARD=s2740vc_1_0 make --silent --no-print-directory
 	@BOARD=px4esc_1_6 make --silent --no-print-directory && $(SRC_DIR)/Tools/uavcan_copy.sh)
-
-sizes:
-	@-find build_* -name firmware_nuttx -type f | xargs size 2> /dev/null || :
 
 # All default targets that don't require a special build environment
 check: check_posix_sitl_default qgc_firmware alt_firmware checks_bootloaders tests check_format

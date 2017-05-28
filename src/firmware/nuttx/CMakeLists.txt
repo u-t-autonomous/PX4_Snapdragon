@@ -1,164 +1,167 @@
-px4_nuttx_generate_builtin_commands(
-	OUT builtin_commands.c
-	MODULE_LIST
-		${module_libraries}
-		${config_extra_builtin_cmds}
-	)
 
-add_subdirectory(${PX4_SOURCE_DIR}/NuttX ${BOARD})
-set(nuttx_export_dir ${PX4_BINARY_DIR}/${BOARD}/nuttx-export)
+set(builtin_apps_string)
+set(builtin_apps_decl_string)
+set(command_count 0)
+
+set(module_list)
+list(APPEND module_list
+	${module_libraries}
+	${config_extra_builtin_cmds}
+	)
+list(SORT module_list)
+
+foreach(module ${module_list})
+	foreach(property MAIN STACK_MAIN PRIORITY)
+		get_target_property(${property} ${module} ${property})
+	endforeach()
+	if (MAIN)
+		set(builtin_apps_string "${builtin_apps_string}\t{\"${MAIN}\", ${PRIORITY}, ${STACK_MAIN}, ${MAIN}_main},\n")
+		set(builtin_apps_decl_string "${builtin_apps_decl_string}extern int ${MAIN}_main(int argc, char *argv[]);\n")
+		math(EXPR command_count "${command_count}+1")
+	endif()
+endforeach()
+
+configure_file(${PX4_SOURCE_DIR}/cmake/nuttx/builtin_commands.c.in builtin_commands.c)
 
 # add executable
-add_executable(firmware_nuttx builtin_commands.c)
-#target_link_libraries(firmware_nuttx apps nuttx)
-add_dependencies(firmware_nuttx apps nuttx)
+set(fw_name "${BOARD}")
+add_executable(${fw_name} builtin_commands.c)
 
-set(link_libs
-	apps nuttx m gcc
-	)
-
-if("${romfs_used}" STREQUAL "y")
-	list(APPEND link_libs romfs)
-endif()
+# build NuttX
+set(NUTTX_CONFIG ${BOARD})
+set(NUTTX_CONFIG_TYPE ${config_nuttx_config})
+set(NUTTX_EXPORT_DIR ${PX4_BINARY_DIR}/${BOARD}/nuttx-export)
+add_subdirectory(${PX4_SOURCE_DIR}/NuttX ${BOARD}_build)
+add_dependencies(${fw_name} apps_${BOARD} nuttx_${BOARD})
 
 #
-# Bootloaders use a different ld file, a seperate startup file
+# Bootloaders use a different ld file, a separate startup file
 # and need to override the os version of sched_process_timer
-#
 set(startup_libs)
 
-if("${config_nuttx_config}" STREQUAL "bootloader")
+if ("${config_nuttx_config}" STREQUAL "bootloader")
 	set(nuttx_ld_prefix "bootloader")
-	set(nuttx_startup_files ${nuttx_export_dir}/startup/${nuttx_startup_files})
 	set(nuttx_bootloader_wrapers "-Wl,-wrap,sched_process_timer -Wl,-wrap,sem_post -Wl,-wrap,sem_wait")
 
-	add_custom_command(OUTPUT
-		${nuttx_startup_files}
-		DEPENDS nuttx_export_${BOARD})
-
-	set_source_files_properties(
-		${nuttx_startup_files}
-		PROPERTIES
-		EXTERNAL_OBJECT true
-		GENERATED true)
-
-	add_library(startup
-		${nuttx_startup_files})
-	set_target_properties(startup
-		PROPERTIES
-		LINKER_LANGUAGE C)
-	list(APPEND startup_libs startup)
+	list(APPEND startup_libs startup_${BOARD})
 
 endif()
 
-if(NOT ${BOARD} STREQUAL "sim")
-	set(main_link_flags
-		"-T${nuttx_export_dir}/build/${nuttx_ld_prefix}ld.script"
-		"-Wl,-Map=${PX4_BINARY_DIR}/${BOARD}/main.map"
+if (NOT ${BOARD} STREQUAL "sim")
+
+	set_target_properties(${fw_name} PROPERTIES LINK_FLAGS
+		"-T${PX4_SOURCE_DIR}/NuttX/configs/${BOARD}/scripts/${nuttx_ld_prefix}ld.script -Wl,-Map=${PX4_BINARY_DIR}/${BOARD}/main.map"
 		)
-	px4_join(OUT main_link_flags LIST ${main_link_flags} GLUE " ")
-	set_target_properties(firmware_nuttx PROPERTIES LINK_FLAGS ${main_link_flags})
 endif()
 
-target_link_libraries(firmware_nuttx
-	-Wl,--warn-common
-	-Wl,--gc-sections
-	-Wl,--start-group
-	${startup_libs}
-	${module_libraries}
-	${df_driver_libs}
-	${config_extra_libs}
-	${nuttx_bootloader_wrapers}
-	${link_libs}
-	-Wl,--end-group)
-
-add_custom_target(check_weak
-	COMMAND ${NM} firmware_nuttx | ${GREP} " w " | cat
-	DEPENDS firmware_nuttx
-	VERBATIM
-	)
-
-if(NOT ${BOARD} STREQUAL "sim")
-
+set(romfs_lib)
+if (NOT ${BOARD} STREQUAL "sim")
 	if ("${romfs_used}" STREQUAL "y")
+		message(STATUS "${BOARD} adding ROMFS ${config_romfs_root}")
 
-		if (config_io_board)
-			set(extras "${CMAKE_BINARY_DIR}/src/modules/px4iofirmware/${config_io_board}.bin")
-		endif()
+		set(romfs_temp_dir ${PX4_BINARY_DIR}/ROMFS/${config_romfs_root})
+		set(romfs_src_dir ${PX4_SOURCE_DIR}/ROMFS/${config_romfs_root})
 
-		message(STATUS "Adding ROMFS on ${BOARD}")
-		px4_nuttx_add_romfs(OUT romfs
-			ROOT ROMFS/${config_romfs_root}
-			EXTRAS ${extras}
+		# directory setup
+		# copy all romfs files, process airframes, prune comments
+		file(GLOB_RECURSE init_airframes ${PX4_SOURCE_DIR}/ROMFS/${config_romfs_root}/*/[1-9]*)
+		add_custom_command(OUTPUT ${romfs_temp_dir}/init.d/rcS ${romfs_temp_dir}/init.d/rc.autostart
+			#COMMAND cmake -E remove_directory ${romfs_temp_dir}
+			COMMAND cmake -E copy_directory ${romfs_src_dir} ${romfs_temp_dir}
+			COMMAND ${PYTHON_EXECUTABLE} ${PX4_SOURCE_DIR}/Tools/px_process_airframes.py
+				-a ${romfs_temp_dir}/init.d
+				-s ${romfs_temp_dir}/init.d/rc.autostart
+				--board ${BOARD}
+			COMMAND ${PYTHON_EXECUTABLE} ${PX4_SOURCE_DIR}/Tools/px_romfs_pruner.py
+				--folder ${romfs_temp_dir} --board ${BOARD}
+			DEPENDS
+				${romfs_src_files}
+				${init_airframes}
+				${PX4_SOURCE_DIR}/ROMFS/${config_romfs_root}/init.d/rcS
+				${PX4_SOURCE_DIR}/Tools/px_process_airframes.py
 			)
+		add_custom_target(create_romfs DEPENDS ${romfs_temp_dir}/init.d/rcS ${romfs_temp_dir}/init.d/rc.autostart)
 		if (config_io_board)
-			add_dependencies(romfs fw_io)
+			add_dependencies(create_romfs fw_io)
 		endif()
+
+		# create romfs.bin
+		add_custom_command(OUTPUT romfs.img
+			COMMAND ${GENROMFS} -f romfs.img -d ${romfs_temp_dir} -V "NSHInitVol"
+			DEPENDS ${romfs_temp_dir}/init.d/rcS ${romfs_temp_dir}/init.d/rc.autostart
+			)
+
+		# create romfs.o
+		add_custom_command(OUTPUT romfs.o
+			COMMAND ${OBJCOPY} -I binary -O elf32-littlearm -B arm romfs.img romfs.o
+				--redefine-sym _binary_romfs_img_start=romfs_img
+				--redefine-sym _binary_romfs_img_size=romfs_img_len
+				--strip-symbol _binary_romfs_img_end
+				--rename-section .data=.rodata
+			DEPENDS romfs.img
+			)
+
+		add_library(romfs STATIC romfs.o)
+		set_target_properties(romfs PROPERTIES LINKER_LANGUAGE C)
+
+		set(romfs_lib romfs)
 	endif()
 
-	set(fw_file
-		${CMAKE_CURRENT_BINARY_DIR}/${BOARD}_${LABEL}.px4)
-
-#
-# Bootloaders do not need .px4 or xml
-#
+	#
+	# Bootloaders do not need .px4 or xml
+	#
 	if(NOT "${config_nuttx_config}" STREQUAL "bootloader")
-		px4_nuttx_add_firmware(OUT ${fw_file}
-			BOARD ${BOARD}
-			EXE ${CMAKE_CURRENT_BINARY_DIR}/firmware_nuttx
-			PARAM_XML ${PX4_BINARY_DIR}/parameters.xml
-			AIRFRAMES_XML ${PX4_BINARY_DIR}/airframes.xml
+		set(fw_file ${CMAKE_CURRENT_BINARY_DIR}/${BOARD}_${LABEL}.px4)
+
+		add_custom_command(OUTPUT ${fw_file} ${fw_name}.bin
+			COMMAND ${OBJCOPY} -O binary ${fw_name} ${fw_name}.bin
+			COMMAND ${PYTHON_EXECUTABLE} ${PX4_SOURCE_DIR}/Tools/px_mkfw.py
+				--prototype ${PX4_SOURCE_DIR}/Images/${BOARD}.prototype
+				--git_identity ${PX4_SOURCE_DIR}
+				--parameter_xml ${PX4_BINARY_DIR}/parameters.xml
+				--airframe_xml ${PX4_BINARY_DIR}/airframes.xml
+				--image ${fw_name}.bin > ${fw_file}
+			DEPENDS ${fw_name}
 			)
 	endif()
 
 	configure_file(gdbinit.in .gdbinit)
 
 	add_custom_target(debug
-		COMMAND ${GDB} ${CMAKE_CURRENT_BINARY_DIR}/firmware_nuttx
-		DEPENDS firmware_nuttx
-			${CMAKE_CURRENT_BINARY_DIR}/.gdbinit
+		COMMAND ${GDB} $<TARGET_FILE:${fw_name}>
+		DEPENDS ${fw_name} ${CMAKE_CURRENT_BINARY_DIR}/.gdbinit
 		)
 
 	add_custom_target(debug_tui
-		COMMAND ${GDBTUI} ${CMAKE_CURRENT_BINARY_DIR}/firmware_nuttx
-		DEPENDS firmware_nuttx
-			${CMAKE_CURRENT_BINARY_DIR}/.gdbinit
+		COMMAND ${GDBTUI} $<TARGET_FILE:${fw_name}>
+		DEPENDS ${fw_name} ${CMAKE_CURRENT_BINARY_DIR}/.gdbinit
 		)
 
 	add_custom_target(debug_ddd
-		COMMAND ${DDD} --debugger ${GDB} ${CMAKE_CURRENT_BINARY_DIR}/firmware_nuttx
-		DEPENDS firmware_nuttx
-			${CMAKE_CURRENT_BINARY_DIR}/.gdbinit
+		COMMAND ${DDD} --debugger ${GDB} $<TARGET_FILE:${fw_name}>
+		DEPENDS ${fw_name} ${CMAKE_CURRENT_BINARY_DIR}/.gdbinit
 		)
 
 	add_custom_target(debug_io
-		COMMAND ${GDB}
-			${PX4_BINARY_DIR}/src/modules/px4iofirmware/${config_io_board}
-		DEPENDS firmware_nuttx
-			${CMAKE_CURRENT_BINARY_DIR}/.gdbinit
+		COMMAND ${GDB} ${fw_io_path}
+		DEPENDS ${fw_name} ${CMAKE_CURRENT_BINARY_DIR}/.gdbinit
 		)
 
 	add_custom_target(debug_io_tui
-		COMMAND ${GDBTUI}
-			${PX4_BINARY_DIR}/src/modules/px4iofirmware/${config_io_board}
-		DEPENDS firmware_nuttx
-			${CMAKE_CURRENT_BINARY_DIR}/.gdbinit
+		COMMAND ${GDBTUI} ${fw_io_path}
+		DEPENDS ${fw_name} ${CMAKE_CURRENT_BINARY_DIR}/.gdbinit
 		)
 
 	add_custom_target(debug_io_ddd
-		COMMAND ${DDD} --debugger ${GDB}
-			${PX4_BINARY_DIR}/src/modules/px4iofirmware/${config_io_board}
-		DEPENDS firmware_nuttx
-			${CMAKE_CURRENT_BINARY_DIR}/.gdbinit
+		COMMAND ${DDD} --debugger ${GDB} ${fw_io_path}}
+		DEPENDS ${fw_io} ${CMAKE_CURRENT_BINARY_DIR}/.gdbinit
 		)
 
 	if(NOT "${config_nuttx_config}" STREQUAL "bootloader")
 		if ("${BOARD}" STREQUAL "aerofc-v1")
-			px4_add_upload_aero(OUT upload OS ${OS} BOARD ${BOARD}
-				BUNDLE ${fw_file})
+			px4_add_upload_aero(OUT upload OS ${OS} BOARD ${BOARD} BUNDLE ${fw_file})
 		else()
-			px4_add_upload(OUT upload OS ${OS} BOARD ${BOARD}
-				BUNDLE ${fw_file})
+			px4_add_upload(OUT upload OS ${OS} BOARD ${BOARD} BUNDLE ${fw_file})
 		endif()
 	endif()
 endif()
@@ -167,4 +170,31 @@ if(NOT "${config_nuttx_config}" STREQUAL "bootloader")
 	install(FILES ${fw_file} DESTINATION .)
 endif()
 
-# vim: set noet ft=cmake fenc=utf-8 ff=unix :
+target_link_libraries(${fw_name}
+	-Wl,--warn-common
+	-Wl,--gc-sections
+	-Wl,--start-group
+	${startup_libs}
+	${module_libraries}
+	${df_driver_libs}
+	${config_extra_libs}
+	${nuttx_bootloader_wrapers}
+	apps_${BOARD}
+	nuttx_${BOARD}
+	m
+	gcc
+	${romfs_lib}
+	-Wl,--end-group)
+
+# print sizes
+add_custom_command(TARGET ${fw_name} POST_BUILD
+	COMMAND size ${fw_name}
+	DEPENDS ${fw_name}
+	)
+
+# print weak symbols
+add_custom_target(check_weak
+	COMMAND ${NM} ${fw_name} | ${GREP} " w " | cat
+	DEPENDS ${fw_name}
+	VERBATIM
+	)

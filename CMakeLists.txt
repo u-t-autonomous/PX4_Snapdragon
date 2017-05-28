@@ -344,25 +344,6 @@ px4_add_git_submodule(TARGET git_mavlink PATH "mavlink/include/mavlink/v1.0")
 px4_add_git_submodule(TARGET git_mavlink2 PATH "mavlink/include/mavlink/v2.0")
 px4_add_git_submodule(TARGET git_uavcan PATH "src/modules/uavcan/libuavcan")
 
-add_custom_target(submodule_clean
-	WORKING_DIRECTORY ${PX4_SOURCE_DIR}
-	COMMAND git submodule deinit -f .
-	COMMAND rm -rf .git/modules/*
-	)
-
-#=============================================================================
-# misc targets
-#
-add_custom_target(check_format
-	COMMAND Tools/check_code_style.sh
-	WORKING_DIRECTORY ${PX4_SOURCE_DIR}
-	)
-
-add_custom_target(config
-	COMMAND cmake-gui .
-	WORKING_DIRECTORY ${PX4_BINARY_DIR}
-	)
-
 #=============================================================================
 # external libraries
 #
@@ -503,11 +484,6 @@ if(all_posix_cmake_targets)
 		VERBATIM
 		)
 endif()
-
-#=============================================================================
-# generate git version
-#
-px4_create_git_hash_header()
 
 #=============================================================================
 # packaging

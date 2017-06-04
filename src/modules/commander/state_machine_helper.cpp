@@ -66,7 +66,6 @@ using namespace DriverFramework;
 
 static const char reason_no_rc[] = "no RC";
 static const char reason_no_offboard[] = "no offboard";
-static const char reason_no_rc_and_no_offboard[] = "no RC and no offboard";
 static const char reason_no_gps[] = "no gps";
 static const char reason_no_gps_cmd[] = "no gps cmd";
 static const char reason_no_local_position[] = "no local position";
@@ -847,40 +846,7 @@ bool set_nav_state(struct vehicle_status_s *status,
 				}
 			}
 
-		} else if (status_flags->offboard_control_signal_lost && status->rc_signal_lost) {
-			enable_failsafe(status, old_failsafe, mavlink_log_pub, reason_no_rc_and_no_offboard);
-
-			if (status_flags->offboard_control_loss_timeout && offb_loss_act < 3 && offb_loss_act >= 0) {
-				if (offb_loss_act == 2 && status_flags->condition_global_position_valid
-				    && status_flags->condition_home_position_valid) {
-					status->nav_state = vehicle_status_s::NAVIGATION_STATE_AUTO_RTL;
-
-				} else if (offb_loss_act == 1 && status_flags->condition_global_position_valid) {
-					status->nav_state = vehicle_status_s::NAVIGATION_STATE_AUTO_LOITER;
-
-				} else if (offb_loss_act == 0 && status_flags->condition_global_position_valid) {
-					status->nav_state = vehicle_status_s::NAVIGATION_STATE_AUTO_LAND;
-
-				} else if (status_flags->condition_local_altitude_valid) {
-					status->nav_state = vehicle_status_s::NAVIGATION_STATE_DESCEND;
-
-				} else {
-					status->nav_state = vehicle_status_s::NAVIGATION_STATE_TERMINATION;
-				}
-
-			} else {
-				if (status_flags->condition_global_position_valid) {
-					status->nav_state = vehicle_status_s::NAVIGATION_STATE_AUTO_LOITER;
-
-				} else if (status_flags->condition_local_altitude_valid) {
-					status->nav_state = vehicle_status_s::NAVIGATION_STATE_DESCEND;
-
-				} else {
-					status->nav_state = vehicle_status_s::NAVIGATION_STATE_TERMINATION;
-				}
-			}
-
-		} else {
+		}else {
 			status->nav_state = vehicle_status_s::NAVIGATION_STATE_OFFBOARD;
 		}
 

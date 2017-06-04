@@ -6,7 +6,7 @@
     <arg name="verbose" default="false"/>
     <arg name="paused" default="false"/>
 
-    <arg name="est" default="ekf2"/>
+    <arg name="est" default="lpe"/>
     <arg name="vehicle" default="iris"/>
     <arg name="world" default="$(find mavlink_sitl_gazebo)/worlds/empty.world"/>
 
@@ -27,8 +27,8 @@
         <arg name="paused" value="$(arg paused)" />
     </include>
 
-    <!-- UAV1 iris_1-->
-    <group ns="uav1">
+    <!-- Quad9 iris_1-->
+    <group ns="Quad9">
         <arg name="fcu_url" default="udp://:14540@localhost:14557"/>
         <arg name="gcs_url" value=""/>
         <arg name="tgt_system" value="1"/> 
@@ -60,8 +60,8 @@
         </include>
     </group>
 
-    <!-- UAV2 iris_2 -->
-    <group ns="uav2">
+    <!-- Quad10 iris_2 -->
+    <group ns="Quad10">
         <arg name="fcu_url" default="udp://:14541@localhost:14559"/>
         <arg name="gcs_url" value=""/>
         <arg name="tgt_system" value="2"/> 
@@ -79,6 +79,7 @@
             <arg name="vehicle" value="$(arg vehicle)"/>
             <arg name="rcS" value="$(arg rcS2)"/>
             <arg name="mavlink_udp_port" value="14562"/>
+            <arg name="visual_material" value="Red"/>
             <arg name="ID" value="$(arg ID)"/>
         </include>
 

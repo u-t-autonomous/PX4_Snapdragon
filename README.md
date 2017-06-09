@@ -35,7 +35,7 @@ git clone https://github.com/ATLFlight/cross_toolchain
 ```
 Copy Hexagon SDK 3.0 for Linux, qrlSDK  to the downloads dir of cross_toolchain cloned
 ```sh
-cp ~/Downloads/{name of file downloaded, eg. qualcomm_hexagon_sdk_lnx_3_1_eval.bin, qrlSDK} cross_toolchain/downloads
+cp ~/Downloads/{name of file downloaded, eg. qualcomm_hexagon_sdk_lnx_3_0_eval.bin, qrlSDK} cross_toolchain/downloads
 ```
 Now run the install script
 ```sh
@@ -50,8 +50,6 @@ export HEXAGON_TOOLS_ROOT=${HEXAGON_INSTALL_HOME}/Qualcomm/HEXAGON_Tools/7.2.12/
 export HEXAGON_ARM_SYSROOT=${HEXAGON_INSTALL_HOME}/Qualcomm/qrlinux_v4_sysroot/merged-rootfs
 export ARM_CROSS_GCC_ROOT=${HEXAGON_INSTALL_HOME}/Qualcomm/ARM_Tools/gcc-4.9-2014.11
 ```
-You can change export HEXAGON_SDK_ROOT=${HEXAGON_INSTALL_HOME}/Qualcomm/Hexagon_SDK/3.0 to the appropriate version
-of Hexagon SDK you choose to install.
 Make sure these variables are set when building code using the Hexagon SDK and Hexagon Tools.
 
 ### Flashing the Snapdragon and Update ADSP Firmware (Done once unless flashing is needed) ###

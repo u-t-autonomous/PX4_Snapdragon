@@ -12,6 +12,17 @@ sudo add-apt-repository ppa:george-edison55/cmake-3.x -y
 sudo apt-get update
 sudo apt-get install python-argparse git-core wget zip \
     python-empy qtcreator cmake build-essential genromfs -y
+```
+Only Ubuntu 14.04, this have to be done:
+```sh
+# repository for openjdk8
+sudo add-apt-repository ppa:openjdk-r/ppa
+sudo apt-get update
+#lxml for Python headers when installing pandas and jinja2
+sudo apt-get build-dep python-lxml
+```
+Finally :
+```sh
 # simulation tools
 sudo apt-get install ant protobuf-compiler libeigen3-dev libopencv-dev openjdk-8-jdk openjdk-8-jre clang-3.5 lldb-3.5 -y
 # required python packages

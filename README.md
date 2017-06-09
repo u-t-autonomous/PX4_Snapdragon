@@ -44,11 +44,12 @@ cd cross_toolchain
 ```
 The script will prompt you to optionally update the default installation path ${HEXAGON_INSTALL_HOME} and uses the following environment variables for the installation. Assuming you select the default install path of ${HOME} the environment settings would be:
 ```sh
-export ${HEXAGON_INSTALL_HOME}=${HOME}
-export HEXAGON_SDK_ROOT=${HEXAGON_INSTALL_HOME}/Qualcomm/Hexagon_SDK/3.0
-export HEXAGON_TOOLS_ROOT=${HEXAGON_INSTALL_HOME}/Qualcomm/HEXAGON_Tools/7.2.12/Tools
-export HEXAGON_ARM_SYSROOT=${HEXAGON_INSTALL_HOME}/Qualcomm/qrlinux_v4_sysroot/merged-rootfs
-export ARM_CROSS_GCC_ROOT=${HEXAGON_INSTALL_HOME}/Qualcomm/ARM_Tools/gcc-4.9-2014.11
+echo "export ${HEXAGON_INSTALL_HOME}=${HOME}" >> ~/.bashrc
+echo "export HEXAGON_SDK_ROOT=${HEXAGON_INSTALL_HOME}/Qualcomm/Hexagon_SDK/3.0" >> ~/.bashrc
+echo "export HEXAGON_TOOLS_ROOT=${HEXAGON_INSTALL_HOME}/Qualcomm/HEXAGON_Tools/7.2.12/Tools" >> ~/.bashrc
+echo "export HEXAGON_ARM_SYSROOT=${HEXAGON_INSTALL_HOME}/Qualcomm/qrlinux_v4_sysroot/merged-rootfs" >> ~/.bashrc
+echo "export ARM_CROSS_GCC_ROOT=${HEXAGON_INSTALL_HOME}/Qualcomm/ARM_Tools/gcc-4.9-2014.11" >> ~/.bashrc
+source ~/.bashrc
 ```
 Make sure these variables are set when building code using the Hexagon SDK and Hexagon Tools.
 

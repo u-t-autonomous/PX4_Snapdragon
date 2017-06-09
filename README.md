@@ -126,6 +126,7 @@ mkdir -p ~/src
 cd ~/src
 git clone https://github.com/u-t-autonomous/PX4_Snapdragon.git
 cd PX4_Snapdragon
+git submodule update --init --recursive
 make eagle_legacy_default
 make eagle_legacy_default upload
 adb push ROMFS/px4fmu_common/mixers/quad_x.main.mix  /usr/share/data/adsp

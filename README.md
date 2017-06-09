@@ -20,12 +20,11 @@ sudo -H pip install pandas jinja2
 sudo apt-get install android-tools-adb android-tools-fastboot fakechroot fakeroot unzip xz-utils wget python python-empy -y
 ```
 ## Cross_toolchain installation ##
-These instuctions describe the default installation proceedure for the Hexagon SDK and Tools. The packages will be installed to ~/Qualcomm/...
-The top working dir is assumed to be the user home directory (~), and downloads are assumed to be in ~/Downloads for simplicity.
+These instuctions describe the default installation proceedure for the Hexagon SDK and Tools. The packages will be installed to ~/Qualcomm. The top working dir is assumed to be the user home directory (~), and downloads are assumed to be in ~/Downloads for simplicity.
 
 First, Download these files:
- -- [Hexagon SDK 3.0 for Linux](https://developer.qualcomm.com/software/hexagon-dsp-sdk/tools).You will have to use a browser as it requires QDN registration and a click through.
- -- [qrlSDK , Flight_X.X.X_JFlash , qcom_flight_controller_hexagon_sdk_add_on, etc..] (https://support.intrinsyc.com). You will need a login that you will be asked to request on the intrynsic website and which is based on the unique ID of your snapdragon board. .
+-- [Hexagon SDK 3.0 for Linux](https://developer.qualcomm.com/software/hexagon-dsp-sdk/tools).You will have to use a browser as it requires QDN registration and a click through.
+-- [qrlSDK , Flight_X.X.X_JFlash , qcom_flight_controller_hexagon_sdk_add_on] (https://support.intrinsyc.com). You will need a login that you will be asked to request on the intrynsic website and which is based on the unique ID of your snapdragon board. .
 
 ### Installing the cross compiler toolchain ###
 Clone the following:

@@ -42,7 +42,7 @@ Now run the install script
 cd cross_toolchain
 ./installsdk.sh --APQ8074 --arm-gcc --qrlSDK
 ```
-The script will prompt you to optionally update the default installation path ${HEXAGON_INSTALL_HOME} and uses the following environment variables for the installation. Assuming you select the default install path of ${HOME} the environment settings would be:
+The script will prompt you to optionally update the default installation path ${HEXAGON_INSTALL_HOME} and uses the following environment variables for the installation. Assuming you select the default install path of ${HOME} the environment settings would be ### (Possible Fix on Qualcomm/qrlinux_v4_sysroot HERE ) ### :
 ```sh
 export HEXAGON_INSTALL_HOME=${HOME}
 echo "export HEXAGON_INSTALL_HOME=${HOME}" >> ~/.bashrc
@@ -53,6 +53,14 @@ echo "export ARM_CROSS_GCC_ROOT=${HEXAGON_INSTALL_HOME}/Qualcomm/ARM_Tools/gcc-4
 source ~/.bashrc
 ```
 Make sure these variables are set when building code using the Hexagon SDK and Hexagon Tools.
+Finally decompress the FC_ADDON supposing you downloaded qcom_flight_controller_hexagon_sdk_add_on.zip :
+```sh
+cd $HEXAGON_INSTALL_HOME/Qualcomm
+mkdir hexagon_add_on && cd hexagon_add_on
+unzip ~/Downloads/qcom_flight_controller_hexagon_sdk_add_on.zip
+echo "export FC_ADDON=$HEXAGON_INSTALL_HOME/Qualcomm/hexagon_add_on" >> ~/.bashrc
+source ~/.bashrc
+```
 
 ### Flashing the Snapdragon and Update ADSP Firmware (Done once unless flashing is needed) ###
 #### Flashing procedure ####
@@ -104,12 +112,9 @@ adb push q6-admin.sh /usr/local/qr-linux/q6-admin.sh
 adb shell chmod +x /usr/local/qr-linux/q6-admin.sh
 ```
 
-Now just push the latest ADSP firmware files. You will need to uncompress qcom_flight_controller_hexagon_sdk_add_on
-which you downloaded earlie.
+Now just push the latest ADSP firmware files. You will need to go to the hexagon_add_on created earlier.
 ```sh
-cd ~/Downloads
-mkdir hexagon_add_on && cd hexagon_add_on
-unzip ../qcom_flight_controller_hexagon_sdk_add_on.zip
+cd $HEXAGON_INSTALL_HOME/Qualcomm/hexagon_add_on
 ./installfcaddon.sh
 ```
 Finally 

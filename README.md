@@ -26,7 +26,7 @@ First, Download these files:
 
 +++[Hexagon SDK 3.0 for Linux](https://developer.qualcomm.com/software/hexagon-dsp-sdk/tools).You will have to use a browser as it requires QDN registration and a click through.
 
-+++[qrlSDK , Flight_X.X.X_JFlash , qcom_flight_controller_hexagon_sdk_add_on] (https://support.intrinsyc.com). You will need a login that you will be asked to request on the intrynsic website and which is based on the unique ID of your snapdragon board. .
++++[Flight_3.1.3_qrlSDK , Flight_X.X.X_JFlash , qcom_flight_controller_hexagon_sdk_add_on] (https://support.intrinsyc.com). You will need a login that you will be asked to request on the intrynsic website and which is based on the unique ID of your snapdragon board.
 
 ### Installing the cross compiler toolchain ###
 Clone the following:
@@ -35,7 +35,7 @@ git clone https://github.com/ATLFlight/cross_toolchain
 ```
 Copy Hexagon SDK 3.0 for Linux, qrlSDK  to the downloads dir of cross_toolchain cloned
 ```sh
-cp ~/Downloads/{name of file downloaded, eg. qualcomm_hexagon_sdk_lnx_3_0_eval.bin, qrlSDK} cross_toolchain/downloads
+cp ~/Downloads/{name of file downloaded, eg. qualcomm_hexagon_sdk_lnx_3_0_eval.bin, Flight_3.1.3_qrlSDK} cross_toolchain/downloads
 ```
 Now run the install script
 ```sh
